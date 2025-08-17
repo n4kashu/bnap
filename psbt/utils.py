@@ -380,3 +380,94 @@ def calculate_fee_rate(fee: int, size: int) -> float:
         return 0.0
     
     return fee / size
+
+
+def tagged_hash(tag: str, data: bytes) -> bytes:
+    """
+    Calculate tagged hash as defined in BIP-340.
+    
+    Args:
+        tag: Hash tag string
+        data: Data to hash
+        
+    Returns:
+        Tagged hash
+    """
+    tag_bytes = tag.encode('utf-8')
+    tag_hash = hashlib.sha256(tag_bytes).digest()
+    return hashlib.sha256(tag_hash + tag_hash + data).digest()
+
+
+def create_taproot_script(tweaked_pubkey: bytes) -> bytes:
+    """
+    Create P2TR output script from tweaked public key.
+    
+    Args:
+        tweaked_pubkey: 32-byte tweaked public key
+        
+    Returns:
+        P2TR output script (OP_1 + 32-byte tweaked pubkey)
+    """
+    if len(tweaked_pubkey) != 32:
+        raise ValueError(f"Invalid tweaked pubkey length: {len(tweaked_pubkey)}")
+    
+    return bytes([0x51, 0x20]) + tweaked_pubkey  # OP_1 OP_PUSHDATA(32) <tweaked_pubkey>
+
+
+def calculate_taproot_tweak(internal_pubkey: bytes, merkle_root: bytes) -> bytes:
+    """
+    Calculate Taproot tweak value.
+    
+    Args:
+        internal_pubkey: 32-byte internal public key
+        merkle_root: 32-byte Merkle root (can be zeros for key-path only)
+        
+    Returns:
+        32-byte tweak value
+    """
+    if len(internal_pubkey) != 32:
+        raise ValueError(f"Invalid internal pubkey length: {len(internal_pubkey)}")
+    if len(merkle_root) != 32:
+        raise ValueError(f"Invalid merkle root length: {len(merkle_root)}")
+    
+    return tagged_hash("TapTweak", internal_pubkey + merkle_root)
+
+
+def is_valid_x_only_pubkey(pubkey: bytes) -> bool:
+    """
+    Validate x-only public key format for Taproot.
+    
+    Args:
+        pubkey: Public key bytes to validate
+        
+    Returns:
+        True if valid x-only pubkey, False otherwise
+    """
+    if not isinstance(pubkey, bytes):
+        return False
+    
+    if len(pubkey) != 32:
+        return False
+    
+    # Additional validation could check if it's a valid curve point
+    # For now, just check it's not all zeros
+    return pubkey != b'\x00' * 32
+
+
+def extract_taproot_pubkey(script: bytes) -> Optional[bytes]:
+    """
+    Extract tweaked public key from P2TR script.
+    
+    Args:
+        script: P2TR script bytes
+        
+    Returns:
+        32-byte tweaked pubkey or None if not P2TR
+    """
+    if len(script) != 34:
+        return None
+    
+    if script[0] != 0x51 or script[1] != 0x20:  # OP_1 OP_PUSHDATA(32)
+        return None
+    
+    return script[2:34]
