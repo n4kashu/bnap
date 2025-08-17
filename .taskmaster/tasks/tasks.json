@@ -1,0 +1,1034 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Initialize Project Structure and Development Environment",
+        "description": "Set up the basic project directory structure, development environment, and core dependencies for the Bitcoin Native Asset Protocol",
+        "details": "Create directory structure including validator/, scripts/, registry/, psbt/, tests/, manifests/, and config directories. Initialize Python virtual environment and install core dependencies: bitcoinlib, btclib, pytest. Set up Node.js environment for JavaScript client libraries with bitcoinjs-lib. Create .env template for configuration. Initialize git repository and basic .gitignore. Set up regtest Bitcoin node configuration files.",
+        "testStrategy": "Verify all directories are created correctly, dependencies install without conflicts, and basic import statements work for all core libraries. Test Bitcoin node connectivity in regtest mode.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Python Development Environment",
+            "description": "Create Python virtual environment and install core dependencies for the Bitcoin Native Asset Protocol",
+            "dependencies": [],
+            "details": "Create a Python 3.9+ virtual environment using venv. Install essential Python packages: bitcoinlib for Bitcoin operations, btclib for cryptographic primitives, pytest for testing framework, pydantic for data validation, and python-dotenv for configuration management. Create requirements.txt with pinned versions for reproducibility. Verify all packages install correctly and can be imported.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Initialize Node.js Environment for Client Libraries",
+            "description": "Set up Node.js environment with JavaScript dependencies for client-side Bitcoin operations",
+            "dependencies": [],
+            "details": "Initialize npm project with package.json. Install bitcoinjs-lib for Bitcoin transaction handling in JavaScript. Add additional dependencies: bip39 for mnemonic generation, tiny-secp256k1 for cryptographic operations, and axios for HTTP client functionality. Create package-lock.json for dependency locking. Set up basic npm scripts for development and testing.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Create Project Directory Structure",
+            "description": "Establish the complete directory hierarchy for all project components",
+            "dependencies": [],
+            "details": "Create main directories: validator/ for validation logic, scripts/ for covenant scripts, registry/ for asset registry, psbt/ for transaction utilities, crypto/ for cryptographic operations, network/ for Bitcoin network interactions, nft/ for NFT-specific logic, cli/ for command-line interface, tests/ for test suites, manifests/ for NFT collection metadata, and config/ for configuration files. Add __init__.py files to Python directories. Create placeholder README.md files in each directory documenting its purpose.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Configure Bitcoin Regtest Environment",
+            "description": "Set up Bitcoin Core configuration for local regtest network development",
+            "dependencies": [
+              "1.3"
+            ],
+            "details": "Create config/bitcoin.conf with regtest network settings: regtest=1, server=1, rpcuser/rpcpassword configuration, port settings (18443 for RPC, 18444 for P2P), and txindex=1 for full transaction indexing. Create .env.example template with placeholders for BITCOIN_RPC_USER, BITCOIN_RPC_PASSWORD, BITCOIN_RPC_HOST, BITCOIN_RPC_PORT, and VALIDATOR_PRIVATE_KEY. Add helper scripts for starting/stopping Bitcoin daemon and generating test blocks.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Initialize Git Repository with Proper Ignore Rules",
+            "description": "Set up version control with comprehensive .gitignore configuration",
+            "dependencies": [
+              "1.1",
+              "1.2",
+              "1.3"
+            ],
+            "details": "Initialize git repository with git init. Create comprehensive .gitignore file covering: Python artifacts (__pycache__/, *.pyc, venv/, .env), Node.js artifacts (node_modules/, npm-debug.log), IDE files (.vscode/, .idea/, *.swp), Bitcoin data (blocks/, chainstate/, wallets/), and temporary files. Add .gitkeep files to preserve empty directories. Create initial commit with project structure and documentation files.",
+            "status": "in-progress",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Implement Core Asset Registry System",
+        "description": "Build the centralized asset registry for tracking asset definitions, rules, and issuance state",
+        "details": "Create registry/schema.py with Pydantic models for asset definitions (fungible/NFT types), validator configurations, and state tracking. Implement registry/manager.py with JSON-based persistence, asset registration, state updates, and query methods. Support maximum supply, per-mint limits, allowlist configurations. Include thread-safe operations and atomic updates. Validate asset IDs are unique and properly formatted (32-byte SHA-256).",
+        "testStrategy": "Unit tests for schema validation, registry operations (add/update/query), concurrent access safety, and JSON serialization/deserialization. Test edge cases like duplicate asset IDs and invalid configurations.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design and implement Pydantic schema models",
+            "description": "Create comprehensive Pydantic models for asset definitions, validator configurations, and state tracking in registry/schema.py",
+            "dependencies": [],
+            "details": "Define FungibleAsset and NFTAsset models with fields for asset_id (32-byte SHA-256), name, symbol, maximum_supply, per_mint_limit, allowlist_root, issuer_pubkey, creation_timestamp, and metadata. Create ValidatorConfig model with pubkey, signing_scheme (ECDSA/Schnorr), and permissions. Implement StateEntry model for tracking minted_supply, last_mint_timestamp, and transaction history. Add proper Pydantic validators for SHA-256 format validation, supply constraints, and data type checking. Include JSON serialization methods and schema versioning support.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement JSON storage backend with file locking",
+            "description": "Build the JSON-based persistence layer with thread-safe file operations and atomic updates in registry/storage.py",
+            "dependencies": [],
+            "details": "Implement JSONStorage class with file-based locking using fcntl or platform-appropriate mechanisms. Create methods for atomic read/write operations with rollback support on failure. Add compression support for large registries using gzip. Implement backup and recovery mechanisms with versioned snapshots. Include file integrity checking with checksums. Handle concurrent access with proper lock acquisition/release patterns and timeout handling.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build registry manager with CRUD operations",
+            "description": "Create the main registry manager interface with asset registration, updates, and query capabilities in registry/manager.py",
+            "dependencies": [
+              "2.1",
+              "2.2"
+            ],
+            "details": "Implement RegistryManager class with register_asset() method that validates unique asset IDs and initializes state. Create update_state() for tracking minted amounts with atomic increment operations. Build query methods: get_asset_by_id(), list_assets_by_type(), find_assets_by_issuer(). Add batch operations for efficiency. Implement transaction logging for audit trails. Include caching layer for frequently accessed assets with TTL-based invalidation.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement asset ID generation and validation",
+            "description": "Create utilities for generating and validating 32-byte SHA-256 asset identifiers with collision detection",
+            "dependencies": [
+              "2.1"
+            ],
+            "details": "Build AssetIDGenerator class that creates deterministic IDs from asset parameters (name, issuer, timestamp, nonce). Implement validate_asset_id() to check SHA-256 format and byte length. Create collision detection mechanism that checks existing registry before accepting new IDs. Add ID derivation methods for sub-assets and collections. Include test vectors for known good/bad IDs. Support both hex string and byte array representations.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Create state tracking and supply management",
+            "description": "Build the state management system for tracking minted amounts, enforcing supply caps, and maintaining issuance history",
+            "dependencies": [
+              "2.3"
+            ],
+            "details": "Implement StateTracker class with check_mint_allowed() that validates against maximum_supply and per_mint_limit. Create increment_minted_supply() with overflow protection and atomic updates. Build issuance history tracking with timestamps, amounts, and recipient addresses. Add supply analytics methods for utilization reporting. Implement state rollback capabilities for error recovery. Include supply exhaustion notifications and threshold alerts.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Develop thread-safety and concurrency utilities",
+            "description": "Implement thread-safe wrappers and concurrency control mechanisms for all registry operations",
+            "dependencies": [
+              "2.2",
+              "2.3"
+            ],
+            "details": "Create ThreadSafeRegistry decorator class with read-write lock implementation using threading.RLock. Implement operation queuing for high-concurrency scenarios with priority handling. Add deadlock detection and prevention mechanisms. Build connection pooling for multi-process access. Include performance monitoring for lock contention analysis. Implement optimistic locking with version numbers for conflict resolution.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Build schema migration system",
+            "description": "Create a migration framework for handling registry schema updates and data transformations",
+            "dependencies": [
+              "2.1",
+              "2.2"
+            ],
+            "details": "Implement MigrationManager with version tracking and upgrade/downgrade capabilities. Create migration scripts for schema changes with validation and rollback support. Build compatibility layer for reading old schema versions. Add dry-run mode for testing migrations. Include data transformation utilities for field additions/removals. Implement migration hooks for custom logic and third-party integrations.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Write comprehensive test suite",
+            "description": "Develop extensive unit and integration tests covering all registry operations, edge cases, and concurrency scenarios",
+            "dependencies": [
+              "2.1",
+              "2.2",
+              "2.3",
+              "2.4",
+              "2.5",
+              "2.6",
+              "2.7"
+            ],
+            "details": "Create pytest fixtures for test registry initialization and teardown. Write unit tests for schema validation, CRUD operations, and state tracking. Implement concurrency tests using threading and multiprocessing to verify thread-safety. Add performance benchmarks for large registries (>10k assets). Test error handling for corrupted data, disk full scenarios, and network interruptions. Include property-based testing with hypothesis for edge case discovery. Verify migration scenarios with real data samples.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Develop PSBT Construction and Parsing Utilities",
+        "description": "Create utilities for building and parsing Partially Signed Bitcoin Transactions for asset operations",
+        "details": "Implement psbt/builder.py with functions to construct PSBTs for fungible token mints, NFT mints, and transfers. Add psbt/parser.py to extract asset metadata from PSBTs and validate structure. Support both P2WSH and Taproot output formats. Include proprietary fields for asset information using protocol-specific key prefixes. Handle witness scripts, Taproot tweaks, and OP_RETURN metadata construction.",
+        "testStrategy": "Test PSBT construction for various asset types, round-trip parsing (build->parse->validate), proprietary field handling, and compatibility with standard Bitcoin PSBT tools. Validate against Bitcoin Core PSBT format requirements.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Base PSBT Builder Class",
+            "description": "Implement the foundational PSBT builder class with core input/output management functionality",
+            "dependencies": [],
+            "details": "Create psbt/builder.py with BasePSBTBuilder class that handles basic PSBT structure initialization, input addition with UTXO references, output creation with amounts and scripts, global transaction fields, and serialization to base64 format. Include methods for setting version, locktime, and sequence numbers. Ensure compatibility with BIP-174 PSBT format specification.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement Fungible Token Mint PSBT Construction",
+            "description": "Build PSBT construction logic specifically for fungible token minting operations",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Extend BasePSBTBuilder with FungibleMintPSBTBuilder class that constructs PSBTs with validator input requirements, colored output creation with asset amounts, change output handling, and proprietary fields for asset ID and mint parameters. Include supply cap validation and per-mint limit enforcement in the PSBT structure.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement NFT Mint PSBT Construction",
+            "description": "Create PSBT builder for NFT minting with metadata commitments",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Create NFTMintPSBTBuilder class that handles single NFT issuance, content hash commitment in proprietary fields, collection ID and token ID encoding, metadata URI or on-chain content references, and proper output script construction for NFT ownership. Support both IPFS and HTTP URI schemes.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Build P2WSH Output Construction Module",
+            "description": "Implement P2WSH covenant script output creation for PSBTs",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Create psbt/outputs/p2wsh.py with functions to generate witness scripts with validator public key, create P2WSH output scripts from witness script hashes, add witness script to PSBT output fields, and handle witness data in proprietary PSBT fields. Ensure scripts follow <ValidatorPubKey> OP_CHECKSIG format.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Build Taproot Output Construction Module",
+            "description": "Implement Taproot output creation with asset commitment tweaking",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Create psbt/outputs/taproot.py implementing Taproot key tweaking with asset commitments using formula P = P_internal + H(asset_commitment) * G, Taproot output script construction, internal key and tweak data in PSBT fields, and support for both key-path and script-path spending. Include BIP-341 compliance.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement OP_RETURN Metadata Encoder",
+            "description": "Create TLV-format OP_RETURN output construction for asset metadata",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Build psbt/metadata.py with TLV (Type-Length-Value) encoding functions for protocol version, asset ID, operation type, and additional metadata fields. Implement OP_RETURN script construction with 80-byte limit compliance, metadata compression where needed, and proper Bitcoin script formatting. Support all asset operation types.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Create PSBT Parser with Metadata Extraction",
+            "description": "Implement comprehensive PSBT parsing to extract asset metadata and validate structure",
+            "dependencies": [
+              "3.6"
+            ],
+            "details": "Develop psbt/parser.py with PSBTParser class that deserializes base64 PSBT data, extracts proprietary asset fields using protocol-specific prefixes, parses OP_RETURN metadata from outputs, validates PSBT structure against BIP-174, and reconstructs asset operation details. Include error handling for malformed PSBTs.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Build Transfer Transaction PSBT Templates",
+            "description": "Create reusable PSBT templates for asset transfer operations",
+            "dependencies": [
+              "3.1",
+              "3.2",
+              "3.3"
+            ],
+            "details": "Implement psbt/templates.py with transfer PSBT builders for fungible token transfers with amount validation, NFT ownership transfers with collection verification, multi-asset transfers in single transaction, and fee calculation with proper change handling. Include templates for common transfer patterns.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Create PSBT Validation and Testing Suite",
+            "description": "Implement comprehensive validation and integration tests with Bitcoin Core",
+            "dependencies": [
+              "3.2",
+              "3.3",
+              "3.4",
+              "3.5",
+              "3.7",
+              "3.8"
+            ],
+            "details": "Build psbt/validator.py with PSBT structure validation against Bitcoin Core requirements, proprietary field format verification, and output script correctness checks. Create tests/test_psbt.py with round-trip tests (build->serialize->parse), Bitcoin Core decodepsbt RPC validation, and edge case testing for all PSBT types.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Implement Cryptographic Key Management and Tweaking",
+        "description": "Build cryptographic utilities for Taproot key tweaking, asset commitments, and signature handling",
+        "details": "Create crypto/keys.py with functions for Taproot key tweaking using asset commitments (K_output = P_internal + H(asset_commitment) * G). Implement crypto/commitments.py for generating asset commitments from asset_id, amount, and op_codes. Add support for both ECDSA (P2WSH) and Schnorr (Taproot) signatures. Include MuSig2 preparation for future multi-validator support. Ensure secure random number generation and proper key derivation.",
+        "testStrategy": "Test key tweaking correctness against test vectors, commitment generation determinism, signature creation/verification for both schemes. Verify compatibility with secp256k1 library implementations.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up crypto module structure and dependencies",
+            "description": "Initialize the cryptographic module with proper directory structure and install required dependencies",
+            "dependencies": [],
+            "details": "Create crypto/ directory with __init__.py. Set up requirements including secp256k1-py, coincurve, or python-bitcoinlib for elliptic curve operations. Configure proper imports and module structure for keys.py, commitments.py, signatures.py, and musig2.py. Ensure compatibility with Python 3.8+ and establish error handling patterns for cryptographic operations.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement BIP32/BIP39 key derivation utilities",
+            "description": "Build secure key derivation functions following Bitcoin standards for hierarchical deterministic wallets",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Implement BIP39 mnemonic generation and seed derivation with proper entropy sources. Create BIP32 extended key derivation for both public and private keys. Support standard derivation paths (m/84'/0'/0' for native segwit). Include functions for child key derivation, key serialization/deserialization, and fingerprint calculation. Ensure constant-time operations to prevent timing attacks.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Create Taproot key tweaking implementation",
+            "description": "Implement BIP341-compliant Taproot key tweaking with asset commitments",
+            "dependencies": [
+              "4.1",
+              "4.2"
+            ],
+            "details": "Implement the core tweaking formula K_output = P_internal + H(asset_commitment) * G in crypto/keys.py. Use tagged hashes as specified in BIP341 (TapTweak). Handle x-only public keys correctly with proper parity handling. Create functions for computing tweaked private keys for signing. Include helper functions for extracting internal keys from tweaked keys. Validate against BIP341 test vectors.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Build asset commitment generation system",
+            "description": "Create deterministic asset commitment generation from asset parameters",
+            "dependencies": [
+              "4.1"
+            ],
+            "details": "Implement crypto/commitments.py with commitment generation from asset_id (32 bytes), amount (8 bytes), and operation codes. Define serialization format for consistent hashing across implementations. Use SHA-256 with domain separation tags to prevent cross-protocol attacks. Support both fungible token and NFT commitment structures. Include commitment verification functions and test for deterministic output.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement ECDSA signature operations",
+            "description": "Build ECDSA signature generation and verification for P2WSH covenants",
+            "dependencies": [
+              "4.1",
+              "4.2"
+            ],
+            "details": "Create ECDSA signing functions using secp256k1 curve parameters. Implement RFC6979 deterministic nonce generation to prevent nonce reuse. Add signature verification with public key recovery support. Handle DER encoding for Bitcoin compatibility. Include functions for signing transaction hashes with proper sighash flags. Ensure low-S signature normalization for malleability protection.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Develop Schnorr signature implementation",
+            "description": "Create BIP340-compliant Schnorr signatures for Taproot transactions",
+            "dependencies": [
+              "4.1",
+              "4.3"
+            ],
+            "details": "Implement BIP340 Schnorr signature algorithm with x-only public keys. Use deterministic nonce generation with auxiliary randomness for security. Create functions for signing with tweaked keys for Taproot spending. Add batch verification support for efficiency. Include tagged hash functions for signature challenges. Validate implementation against BIP340 test vectors.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Create MuSig2 nonce generation and management",
+            "description": "Implement secure nonce generation and storage for MuSig2 multi-signature protocol",
+            "dependencies": [
+              "4.1",
+              "4.6"
+            ],
+            "details": "Build MuSig2 nonce generation with proper randomness and deterministic fallback. Create secure nonce storage system to prevent reuse attacks. Implement nonce commitment phase with hash-based commitments. Add nonce aggregation functions for combining multiple signers' nonces. Include session management to track ongoing signing sessions. Ensure nonces are deleted after use to prevent replay attacks.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Implement MuSig2 partial signature aggregation",
+            "description": "Build partial signature generation and aggregation for multi-validator support",
+            "dependencies": [
+              "4.7"
+            ],
+            "details": "Create partial signature generation using individual signer keys and aggregated nonces. Implement signature aggregation algorithm to combine partial signatures. Add verification functions for partial signatures before aggregation. Include key aggregation with proper coefficient calculation. Support threshold signatures (k-of-n) for future expansion. Handle edge cases like duplicate signers and malicious partial signatures.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Develop secure key storage and management",
+            "description": "Create utilities for secure private key storage and access control",
+            "dependencies": [
+              "4.2"
+            ],
+            "details": "Implement encrypted key storage using AES-256-GCM with key derivation from passwords. Create key manager class for loading, storing, and rotating keys. Add support for hardware security module (HSM) integration stubs. Include secure memory handling to prevent key material leakage. Implement key backup and recovery mechanisms. Ensure keys are zeroed in memory after use.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "Create comprehensive test suite with BIP test vectors",
+            "description": "Build extensive tests validating all cryptographic operations against official test vectors",
+            "dependencies": [
+              "4.3",
+              "4.4",
+              "4.5",
+              "4.6",
+              "4.8",
+              "4.9"
+            ],
+            "details": "Implement unit tests for each cryptographic primitive against BIP341 (Taproot), BIP340 (Schnorr), and BIP327 (MuSig2) test vectors. Create integration tests for complete signing workflows. Add property-based tests for edge cases and randomized inputs. Include performance benchmarks for cryptographic operations. Test interoperability with Bitcoin Core and other implementations. Verify security properties like signature non-malleability.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Build Validator Core Logic and Rule Enforcement",
+        "description": "Implement the validator component that enforces asset rules and authorizes mint transactions",
+        "details": "Create validator/core.py with comprehensive validation logic: supply limit enforcement, per-mint cap checking, allowlist verification using Merkle proofs, content hash validation for NFTs. Implement validator/signer.py for PSBT signing with proper key management. Add validator/rules.py for extensible rule engines. Support both P2WSH and Taproot covenant signing. Include detailed error reporting and logging for validation failures.",
+        "testStrategy": "Unit tests for each validation rule, integration tests with registry state, error condition testing (exceeded limits, invalid proofs, mismatched hashes). Test signing with malformed PSBTs and ensure proper rejection.",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design and implement core validation engine architecture",
+            "description": "Create validator/core.py with main ValidationEngine class that orchestrates all validation operations",
+            "dependencies": [],
+            "details": "Design ValidationEngine class with methods for validate_mint_transaction(), validate_psbt(), and process_validation_request(). Implement plugin architecture for rule modules using abstract base classes. Create validation context object to pass state between rules. Add configuration loading for validator settings and keys. Include transaction parsing utilities and PSBT introspection methods.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement supply limit enforcement module",
+            "description": "Build supply tracking and validation logic to enforce maximum supply caps for assets",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Create validator/rules/supply_limit.py with SupplyLimitRule class. Implement get_current_supply() to query registry for total minted amount. Add validate_supply() to check if mint would exceed max_supply. Track supply updates atomically with registry integration. Include caching mechanism for frequently checked assets. Handle edge cases like integer overflow and concurrent mints.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build per-mint limit validation system",
+            "description": "Implement transaction-level mint amount restrictions per asset rules",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Create validator/rules/mint_limits.py with MintLimitRule class. Parse PSBT outputs to calculate total mint amount per transaction. Validate against per_mint_limit from asset configuration. Support different limit types (per-address, per-transaction, time-based). Include special handling for batch mints and multi-output transactions.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Develop Merkle proof verification for allowlists",
+            "description": "Create allowlist validation using cryptographic Merkle proofs",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Implement validator/rules/allowlist.py with AllowlistRule class. Add verify_merkle_proof() for proof validation against merkle_root in asset config. Parse recipient addresses from PSBT outputs for verification. Support multiple proof formats and hash functions. Include proof caching and batch verification optimizations. Handle invalid proofs gracefully with detailed error messages.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement NFT content hash validation",
+            "description": "Build content integrity verification for NFT metadata and assets",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Create validator/rules/content_hash.py with ContentHashRule class. Implement hash validation for NFT metadata against declared content_hash. Support multiple hash algorithms (SHA-256, SHA3-256). Validate IPFS CIDs and URI references. Include metadata structure validation against NFT manifest schema. Add optional content retrieval and verification for accessible URIs.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Create PSBT signing module with key management",
+            "description": "Implement secure PSBT signing for approved transactions",
+            "dependencies": [
+              "5.1",
+              "5.2",
+              "5.3",
+              "5.4",
+              "5.5"
+            ],
+            "details": "Build validator/signer.py with TransactionSigner class. Implement sign_psbt() supporting both ECDSA (P2WSH) and Schnorr (Taproot) signatures. Add secure key loading from encrypted storage or HSM. Create signing context with nonce generation and deterministic signatures. Include partial signature support for future multi-sig. Implement signature verification before finalizing.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Develop comprehensive error reporting system",
+            "description": "Build detailed validation error tracking and reporting mechanism",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Create validator/errors.py with ValidationError hierarchy for different failure types. Implement error aggregation for multiple validation failures. Add structured error responses with error codes, descriptions, and remediation hints. Include validation trace for debugging which rules passed/failed. Support internationalization for error messages.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Implement audit logging and monitoring",
+            "description": "Create comprehensive logging system for all validation decisions",
+            "dependencies": [
+              "5.1",
+              "5.7"
+            ],
+            "details": "Build validator/logging.py with structured logging for audit trail. Log all validation requests with timestamps, asset IDs, amounts, and decisions. Include request fingerprinting for deduplication. Add metrics collection for monitoring (validation rate, failure reasons, latency). Implement log rotation and archival. Support multiple output formats (JSON, syslog).",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Create registry integration layer",
+            "description": "Build robust integration with asset registry for state queries and updates",
+            "dependencies": [
+              "5.1"
+            ],
+            "details": "Implement validator/registry_client.py for registry communication. Add methods for querying asset rules, current supply, and validator keys. Implement atomic state updates after successful validations. Include connection pooling and retry logic for reliability. Add caching layer with TTL for frequently accessed data. Handle registry unavailability gracefully.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "Write comprehensive unit and integration tests",
+            "description": "Develop extensive test suite for all validator components",
+            "dependencies": [
+              "5.1",
+              "5.2",
+              "5.3",
+              "5.4",
+              "5.5",
+              "5.6",
+              "5.7",
+              "5.8",
+              "5.9"
+            ],
+            "details": "Create tests/validator/ directory with test files for each module. Write unit tests for individual validation rules with edge cases. Add integration tests for complete validation flows. Include fixtures for valid/invalid PSBTs and test assets. Test error conditions like exceeded limits, invalid proofs, malformed inputs. Add performance tests for high-throughput scenarios. Mock registry interactions for isolated testing.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Develop Covenant Script Implementations",
+        "description": "Create Bitcoin scripts for both P2WSH and Taproot covenant enforcement",
+        "details": "Implement scripts/p2wsh_covenant.py with witness scripts for validator signature verification (<ValidatorPubKey> OP_CHECKSIG). Create scripts/taproot_covenant.py for Taproot key-path spending with asset commitment tweaks. Add scripts/validator.py for script validation and testing. Include script templates for different asset types and operations. Ensure scripts are compatible with Bitcoin consensus rules.",
+        "testStrategy": "Test script construction, witness generation, and validation against Bitcoin Core. Verify scripts execute correctly in regtest environment. Test edge cases like empty witnesses and malformed scripts.",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement P2WSH Covenant Script Construction",
+            "description": "Create witness script builder for P2WSH covenants with validator signature verification",
+            "dependencies": [],
+            "details": "Implement scripts/p2wsh_covenant.py with functions to build witness scripts containing <ValidatorPubKey> OP_CHECKSIG. Create script templates for different asset operations (mint, transfer, burn). Build witness data generation functions for spending P2WSH outputs. Ensure proper script serialization and Bitcoin Script opcode usage. Include helper functions for script hash calculation and P2WSH address generation.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Develop Taproot Covenant Implementation",
+            "description": "Build Taproot key-path and script-path spending with asset commitment tweaks",
+            "dependencies": [],
+            "details": "Create scripts/taproot_covenant.py with Taproot key tweaking using asset commitments (P = P_internal + H(asset_commitment) * G). Implement script tree construction for complex spending conditions. Build control block generation for script-path spending. Create functions for computing Taproot output keys and addresses. Support both key-path (validator signature only) and script-path (complex conditions) spending.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Create Script Validation and Testing Framework",
+            "description": "Build comprehensive script validator with Bitcoin Core integration for consensus verification",
+            "dependencies": [
+              "6.1",
+              "6.2"
+            ],
+            "details": "Implement scripts/validator.py with script execution simulation, signature verification logic, and Bitcoin Core RPC integration for script validation. Create functions to validate witness data against scripts, verify Taproot control blocks, and check script consensus rules. Build test harness for running scripts against Bitcoin Core's script interpreter. Include debugging utilities for script execution traces.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement Asset-Specific Script Templates",
+            "description": "Create reusable script templates for different asset types and operations",
+            "dependencies": [
+              "6.1",
+              "6.2"
+            ],
+            "details": "Build scripts/templates.py with pre-defined script patterns for fungible token minting, NFT creation, transfer operations, and burn operations. Create template variables for validator keys, asset IDs, and operation-specific parameters. Implement template compilation to actual scripts with parameter substitution. Support both P2WSH and Taproot template variants. Include templates for time-locked and multi-signature operations.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Build Script Encoding and Decoding Utilities",
+            "description": "Create utilities for script serialization, deserialization, and human-readable formatting",
+            "dependencies": [
+              "6.1",
+              "6.2"
+            ],
+            "details": "Implement scripts/encoding.py with functions to serialize scripts to hex, deserialize from transactions, and convert between formats. Create human-readable script disassembly for debugging. Build witness stack encoding/decoding for P2WSH. Implement Taproot script commitment and leaf version handling. Support compact script representation for storage efficiency.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Develop Comprehensive Script Testing Suite",
+            "description": "Create extensive tests for all script types using Bitcoin regtest network",
+            "dependencies": [
+              "6.1",
+              "6.2",
+              "6.3",
+              "6.4",
+              "6.5"
+            ],
+            "details": "Write tests/test_scripts.py with regtest integration for live script execution. Test P2WSH script creation and spending with valid/invalid signatures. Verify Taproot key-path and script-path spending scenarios. Test edge cases including empty witnesses, malformed scripts, and invalid opcodes. Create performance benchmarks for script operations. Implement fuzz testing for script parser robustness.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement Merkle Proof System for Allowlists",
+        "description": "Build cryptographic proof system for allowlist-based asset distribution",
+        "details": "Create crypto/merkle.py with Merkle tree construction from allowlisted addresses, proof generation for specific addresses, and proof verification. Implement crypto/allowlist.py for allowlist management, proof caching, and integration with validator logic. Support efficient proof generation for large allowlists (>10k addresses). Use SHA-256 for hashing with proper leaf node formatting to prevent second-preimage attacks.",
+        "testStrategy": "Test Merkle tree construction with various tree sizes, proof generation/verification correctness, and performance with large allowlists. Verify security against known Merkle tree attacks.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Merkle Tree Core Data Structure",
+            "description": "Create the fundamental Merkle tree data structure with efficient node management and tree construction algorithms",
+            "dependencies": [],
+            "details": "Implement crypto/merkle.py with MerkleTree class containing node structure (hash, left, right children), tree construction from sorted address lists, proper leaf node formatting with 0x00 prefix for domain separation, efficient binary tree building for large datasets (10k+ addresses), tree height calculation and validation, and internal node hash computation using SHA-256(left_hash || right_hash)",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Build Merkle Proof Generation System",
+            "description": "Develop proof generation logic that creates inclusion proofs for specific addresses with sibling hashes",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Extend crypto/merkle.py with proof generation methods including path computation from leaf to root, sibling hash collection at each tree level, proof object structure (leaf_index, leaf_hash, sibling_hashes), optimization for proof size and generation speed, support for non-existent address proofs (exclusion proofs), and proof serialization to JSON/bytes format",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Merkle Proof Verification Logic",
+            "description": "Create verification system that validates inclusion proofs against Merkle root hashes",
+            "dependencies": [
+              "7.2"
+            ],
+            "details": "Add verification methods to crypto/merkle.py including proof validation algorithm that reconstructs root from leaf and siblings, constant-time comparison to prevent timing attacks, verification of proof structure and hash lengths, support for both inclusion and exclusion proof verification, error handling for malformed proofs, and integration with validator's allowlist checking logic",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Create Allowlist Management System",
+            "description": "Build comprehensive allowlist management with address storage, updates, and integration points",
+            "dependencies": [
+              "7.1"
+            ],
+            "details": "Implement crypto/allowlist.py with AllowlistManager class containing address list storage and sorting, Merkle tree generation and root hash computation, address addition/removal with tree updates, bulk import from CSV/JSON formats, address validation and normalization, integration methods for validator to check allowlist membership, and persistent storage of allowlists with versioning",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement Proof Caching and Optimization",
+            "description": "Develop caching system for frequently accessed proofs and optimize performance for large allowlists",
+            "dependencies": [
+              "7.2",
+              "7.3",
+              "7.4"
+            ],
+            "details": "Add caching layer to crypto/allowlist.py with LRU cache for recently generated proofs, pre-computation of common proof paths, memory-efficient storage of partial trees, lazy evaluation for rarely accessed branches, cache invalidation on allowlist updates, performance monitoring and cache hit ratio tracking, and configurable cache size limits based on available memory",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add Security Measures and Performance Testing",
+            "description": "Implement security protections against known attacks and comprehensive performance benchmarks",
+            "dependencies": [
+              "7.1",
+              "7.2",
+              "7.3",
+              "7.4",
+              "7.5"
+            ],
+            "details": "Create security measures including second-preimage attack prevention through proper leaf/internal node distinction, protection against CVE-2012-2459 duplicate txid vulnerability, input validation for all public methods, comprehensive unit tests for edge cases and attack vectors. Add performance benchmarks for tree construction with 1k/10k/100k addresses, proof generation/verification timing, memory usage profiling, and comparison with reference implementations",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Build Transaction Broadcasting and Network Interface",
+        "description": "Implement Bitcoin network interface for transaction broadcasting and blockchain monitoring",
+        "details": "Create network/broadcaster.py for transaction broadcasting to regtest/testnet, with retry logic and error handling. Implement network/monitor.py for tracking transaction confirmations and registry state updates. Add network/rpc.py for Bitcoin Core RPC communication with proper authentication. Include support for both local Bitcoin node and external node connections. Handle network errors gracefully with exponential backoff.",
+        "testStrategy": "Test transaction broadcasting success/failure scenarios, confirmation monitoring accuracy, and RPC connectivity with various Bitcoin node configurations. Simulate network failures and recovery.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up Bitcoin Core RPC client with authentication",
+            "description": "Create network/rpc.py module implementing Bitcoin Core JSON-RPC client with proper authentication, connection pooling, and configuration management",
+            "dependencies": [],
+            "details": "Implement RPCClient class with methods for core Bitcoin operations (sendrawtransaction, getblockcount, getrawmempool, etc.). Support both cookie-based and user/password authentication. Add connection pooling for efficient resource usage. Include configuration for RPC host, port, and credentials from environment variables. Implement proper error handling for connection failures and invalid responses.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement transaction broadcaster with retry logic",
+            "description": "Build network/broadcaster.py module for reliable transaction broadcasting with automatic retry on failures and exponential backoff",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Create TransactionBroadcaster class with broadcast() method supporting raw transactions and PSBTs. Implement retry mechanism with configurable attempts (default 3) and exponential backoff starting at 1 second. Handle various error types: network timeouts, node rejections, mempool conflicts. Support dry-run mode for testing. Log all broadcast attempts with detailed error information. Return transaction ID on success.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build confirmation monitoring system",
+            "description": "Develop network/monitor.py for tracking transaction confirmations and detecting blockchain reorganizations",
+            "dependencies": [
+              "8.1"
+            ],
+            "details": "Implement ConfirmationMonitor class with both ZMQ subscription and polling fallback methods. Track transactions by ID with configurable confirmation thresholds (default 6 blocks). Support batch monitoring of multiple transactions. Detect and handle blockchain reorganizations. Emit events/callbacks when transactions reach desired confirmations. Include methods to query current confirmation count and estimated confirmation time.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Create mempool monitoring functionality",
+            "description": "Implement mempool monitoring to track pending transactions and detect conflicts or replacements",
+            "dependencies": [
+              "8.1",
+              "8.3"
+            ],
+            "details": "Add MempoolMonitor class to network/monitor.py for real-time mempool tracking. Monitor for transaction appearances, disappearances, and replacements (RBF). Detect conflicting transactions spending same inputs. Track fee rates and mempool congestion metrics. Support filtering by addresses or asset IDs. Provide methods to query mempool state and transaction position. Include webhook/callback support for mempool events.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement registry state synchronization",
+            "description": "Build integration between network monitoring and registry updates to maintain accurate asset state",
+            "dependencies": [
+              "8.3",
+              "8.4"
+            ],
+            "details": "Create network/sync.py module to bridge network events with registry state. Update registry upon transaction confirmations: increment issued supply, mark mints as confirmed, update last activity timestamps. Handle reorganization events by rolling back affected registry changes. Implement atomic state updates to prevent inconsistencies. Add recovery mechanism for missed blocks during downtime. Include state validation to detect and repair discrepancies.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add multi-node support and failover",
+            "description": "Implement support for multiple Bitcoin nodes with automatic failover and load balancing",
+            "dependencies": [
+              "8.1",
+              "8.2"
+            ],
+            "details": "Enhance RPCClient to support multiple node endpoints with health checking. Implement round-robin load balancing for read operations. Add automatic failover when primary node becomes unavailable. Include node scoring based on latency and reliability. Support different node types: local, remote, public APIs. Implement circuit breaker pattern to prevent cascading failures. Add monitoring metrics for node performance and availability.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Create comprehensive network integration tests",
+            "description": "Develop integration test suite for all network components using regtest network",
+            "dependencies": [
+              "8.2",
+              "8.3",
+              "8.4",
+              "8.5",
+              "8.6"
+            ],
+            "details": "Write tests/test_network_integration.py with regtest network setup/teardown. Test transaction broadcasting with various scenarios: success, rejection, timeout. Verify confirmation monitoring with block generation. Test mempool monitoring with transaction replacement. Simulate network failures and verify retry/failover behavior. Test registry synchronization with reorganizations. Benchmark performance with high transaction volumes. Include stress tests for connection pooling and concurrent operations.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Create NFT Metadata and Content Management System",
+        "description": "Implement NFT-specific functionality including metadata binding, content hash verification, and collection management",
+        "details": "Create nft/metadata.py for JSON schema validation, content hash binding (SHA-256), and metadata serialization. Implement nft/collections.py for collection manifest management, token ID tracking, and collection-level rules. Add nft/content.py for IPFS integration, content verification, and URI handling. Support both on-chain (Taproot envelope) and off-chain (IPFS/HTTP) content storage. Ensure metadata immutability and content integrity.",
+        "testStrategy": "Test metadata schema validation, content hash verification against actual content, collection manifest parsing, and IPFS content retrieval. Verify NFT uniqueness enforcement within collections.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design and implement NFT metadata JSON schema",
+            "description": "Create comprehensive JSON schema definitions for NFT metadata validation including required and optional fields",
+            "dependencies": [],
+            "details": "Implement nft/metadata.py with JSON schema definitions supporting standard NFT fields (name, description, image/content URI, attributes array). Include schema versioning support, custom property definitions, and collection-specific metadata extensions. Use jsonschema library for validation. Support both ERC-721 and custom metadata standards.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Build content hash generation and verification system",
+            "description": "Implement SHA-256 based content hashing and verification mechanisms for NFT content integrity",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Add content hashing functions in nft/content.py to generate SHA-256 hashes of NFT content (images, videos, documents). Implement hash binding to metadata, verification against actual content, and multi-hash support for different content layers. Include merkle tree generation for multi-file NFTs.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Create collection manifest management system",
+            "description": "Build collection-level management with manifest structures and token ID tracking",
+            "dependencies": [
+              "9.1"
+            ],
+            "details": "Implement nft/collections.py with collection manifest data structures including collection metadata, token ID allocation and tracking, max supply per collection, minting rules and constraints. Support sequential and random token ID assignment strategies. Include collection-level metadata inheritance.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Integrate IPFS for decentralized content storage",
+            "description": "Implement IPFS integration for storing and retrieving NFT content with pinning support",
+            "dependencies": [
+              "9.2"
+            ],
+            "details": "Add IPFS client integration in nft/content.py using ipfshttpclient or py-ipfs-api. Implement content upload with automatic pinning, CID generation and storage, gateway URL construction, and fallback gateway support. Include retry logic and connection pooling for reliability.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement HTTP gateway and URI handling",
+            "description": "Build HTTP gateway support for content retrieval with proper URI resolution",
+            "dependencies": [
+              "9.4"
+            ],
+            "details": "Create URI resolver in nft/content.py supporting multiple URI schemes (ipfs://, https://, ar://). Implement HTTP gateway integration with caching, content type detection, and size limits. Add fallback mechanism between IPFS gateways and direct HTTP URLs. Include CDN support for production deployments.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add Taproot envelope content storage support",
+            "description": "Implement optional on-chain content storage using Taproot script paths",
+            "dependencies": [
+              "9.2"
+            ],
+            "details": "Create on-chain storage module in nft/content.py for embedding small content directly in Taproot scripts. Implement content chunking for larger data, script path construction with content commitments, and retrieval from blockchain. Support compression and encoding optimizations for efficiency.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Build metadata immutability enforcement",
+            "description": "Implement mechanisms to ensure NFT metadata cannot be altered after minting",
+            "dependencies": [
+              "9.2",
+              "9.3"
+            ],
+            "details": "Add immutability checks in nft/metadata.py using content hash binding to transaction outputs. Implement metadata freezing upon mint confirmation, version tracking for pre-mint updates, and audit trail for metadata changes. Include cryptographic proofs of metadata state at mint time.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Create comprehensive test suite for NFT system",
+            "description": "Develop thorough tests for all NFT components including metadata, content, and collections",
+            "dependencies": [
+              "9.1",
+              "9.2",
+              "9.3",
+              "9.4",
+              "9.5",
+              "9.6",
+              "9.7"
+            ],
+            "details": "Write tests in tests/test_nft/ covering metadata schema validation with valid/invalid data, content hash verification with tampered content detection, IPFS upload/retrieval simulation, collection manifest parsing and validation, NFT uniqueness enforcement, URI resolution across schemes, and on-chain content storage/retrieval. Include integration tests with validator components.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Develop Command-Line Interface and Integration Tools",
+        "description": "Build CLI tools for asset management, validator operations, and system administration",
+        "details": "Create cli/main.py with commands for asset registration, minting, registry queries, and validator operations. Implement cli/commands/ with subcommands for fungible tokens (create, mint), NFTs (create collection, mint token), and system management (init registry, validate PSBT). Add configuration management via CLI args and config files. Include comprehensive help text and error messages. Support both interactive and batch modes.",
+        "testStrategy": "Test all CLI commands with various input formats, error handling for invalid inputs, configuration file parsing, and end-to-end workflows (create asset -> mint -> verify). Validate output formatting and user experience.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          5,
+          8,
+          9
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design and implement main CLI entry point and command structure",
+            "description": "Create the main CLI application structure with command routing and argument parsing framework",
+            "dependencies": [],
+            "details": "Set up cli/main.py using Python's click or argparse framework. Define the main command groups: 'asset' (for asset management), 'mint' (for minting operations), 'registry' (for queries), 'validator' (for validator operations), and 'config' (for configuration). Implement command routing, global options (--config-file, --output-format, --verbose), and error handling wrapper. Set up logging configuration based on verbosity levels.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement asset registration and management commands",
+            "description": "Build CLI commands for creating and managing fungible tokens and NFT collections",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Create cli/commands/asset.py with subcommands: 'create-fungible' (name, symbol, max-supply, per-mint-limit), 'create-nft' (collection-name, max-supply, metadata-uri), 'list' (show all registered assets), 'info' (detailed asset information), and 'update-rules' (modify minting rules). Include input validation, confirmation prompts for destructive operations, and proper error messages. Support reading asset definitions from JSON files for batch operations.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Develop minting operation commands",
+            "description": "Create commands for minting fungible tokens and NFTs with PSBT generation",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Implement cli/commands/mint.py with 'mint-fungible' (asset-id, amount, recipient), 'mint-nft' (collection-id, token-id, metadata, recipient), and 'batch-mint' (from CSV/JSON file) commands. Generate PSBTs for minting operations, validate against asset rules (supply caps, allowlists), and output base64-encoded PSBTs. Include dry-run mode for testing without actual minting. Support both interactive prompts and non-interactive batch processing.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Build registry query and reporting commands",
+            "description": "Implement commands for querying registry state and generating reports",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Create cli/commands/registry.py with 'query' (search assets by criteria), 'stats' (issuance statistics), 'history' (transaction history for an asset), 'export' (dump registry to JSON/CSV), and 'verify' (check registry integrity) commands. Implement flexible filtering options, pagination for large result sets, and multiple output formats (JSON, CSV, table, human-readable). Add summary reports for total assets, minted amounts, and remaining supply.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Create validator management and operation commands",
+            "description": "Build commands for validator initialization, status monitoring, and transaction processing",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Implement cli/commands/validator.py with 'init' (initialize validator with keys), 'start/stop' (control validator service), 'status' (check validator health), 'sign-psbt' (manually sign a PSBT), 'validate-psbt' (check PSBT validity), and 'rotate-keys' (key rotation) commands. Include health checks, performance metrics display, and transaction queue monitoring. Support both daemon mode and one-shot operations.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement configuration management and environment handling",
+            "description": "Create configuration file parsing, environment variable support, and settings management",
+            "dependencies": [
+              "10.1"
+            ],
+            "details": "Build cli/config.py for parsing configuration files (YAML/JSON), environment variable mapping (BNAP_* prefix), default settings management, and config validation. Support hierarchical configuration (global -> project -> command-line). Implement 'config init' (generate default config), 'config show' (display current settings), and 'config validate' (check configuration) commands. Include configuration profiles for different environments (dev, test, prod).",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Add comprehensive help system and output formatting",
+            "description": "Implement detailed help documentation, examples, and flexible output formatting",
+            "dependencies": [
+              "10.2",
+              "10.3",
+              "10.4",
+              "10.5"
+            ],
+            "details": "Create cli/help.py with context-aware help text, usage examples for each command, and troubleshooting guides. Implement cli/output.py for formatting results in JSON (machine-readable), table (human-readable), CSV (data export), and custom templates. Add '--help' with examples for every command, man page generation, and shell completion scripts (bash, zsh). Include interactive mode with command history and tab completion.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-17T20:59:30.553Z",
+      "updated": "2025-08-17T21:23:03.880Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

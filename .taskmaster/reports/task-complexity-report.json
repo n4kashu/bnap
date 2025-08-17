@@ -1,0 +1,93 @@
+{
+	"meta": {
+		"generatedAt": "2025-08-17T21:01:27.315Z",
+		"tasksAnalyzed": 10,
+		"totalTasks": 10,
+		"analysisCount": 10,
+		"thresholdScore": 5,
+		"projectName": "Task Master",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Initialize Project Structure and Development Environment",
+			"complexityScore": 3,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down the project initialization into setting up Python environment with virtual environment creation and dependency installation (bitcoinlib, btclib, pytest), Node.js environment setup for JavaScript libraries (bitcoinjs-lib), creation of all required directory structures (validator/, scripts/, registry/, psbt/, crypto/, network/, nft/, cli/, tests/, manifests/, config/), configuration file templates (.env, bitcoin.conf for regtest), and git repository initialization with appropriate .gitignore rules for Python and Node.js projects.",
+			"reasoning": "This is a straightforward setup task with no existing code base. Complexity is low as it involves standard project initialization steps. The project appears to be starting from scratch with only documentation files present."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Implement Core Asset Registry System",
+			"complexityScore": 6,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Implement the registry system with: Pydantic schema definitions for fungible and NFT asset types with validation rules, JSON-based storage manager with file locking for concurrent access safety, asset registration logic with unique ID validation (SHA-256 format), state tracking for minted amounts vs maximum supply, query interfaces for asset lookups by ID/type/issuer, thread-safe update operations using file locks or database transactions, migration system for schema updates, and comprehensive unit tests for all registry operations including edge cases.",
+			"reasoning": "Medium-high complexity due to need for thread-safe operations, complex data validation, state management, and concurrent access handling. The technical specs show detailed requirements for asset fields, validation rules, and state tracking that need careful implementation."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "Develop PSBT Construction and Parsing Utilities",
+			"complexityScore": 7,
+			"recommendedSubtasks": 9,
+			"expansionPrompt": "Build PSBT utilities covering: Base PSBT builder class with input/output management, fungible token mint PSBT construction with proper witness scripts, NFT mint PSBT construction with metadata commitments, transfer transaction PSBT templates, parser for extracting asset metadata from proprietary PSBT fields, P2WSH output construction with covenant scripts, Taproot output construction with key tweaking for asset commitments, OP_RETURN metadata encoding with TLV format as specified, validation of PSBT structure against Bitcoin Core requirements, and integration tests with actual Bitcoin Core PSBT commands.",
+			"reasoning": "High complexity due to Bitcoin protocol specifics, multiple output types (P2WSH, Taproot, OP_RETURN), proprietary field handling, and need for compatibility with Bitcoin Core. The documentation shows complex TLV encoding requirements and multiple transaction types."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Implement Cryptographic Key Management and Tweaking",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Implement comprehensive crypto module with: Taproot key tweaking implementation following BIP341 (K_output = P_internal + H(asset_commitment) * G), asset commitment generation from asset_id/amount/op_codes with proper serialization, ECDSA signature generation and verification for P2WSH covenants, Schnorr signature implementation for Taproot spending, MuSig2 nonce generation and storage to prevent reuse attacks, partial signature aggregation logic, secure key derivation using BIP32/BIP39, private key storage and management utilities, test vectors from BIP341 for validation, and integration with secp256k1 library for all elliptic curve operations.",
+			"reasoning": "Very high complexity due to critical cryptographic operations, multiple signature schemes (ECDSA, Schnorr, MuSig2), Taproot specifics, and security requirements. The tech specs detail complex MuSig2 implementation with nonce management which is security-critical."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "Build Validator Core Logic and Rule Enforcement",
+			"complexityScore": 7,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Create validator system with: Core validation engine with pluggable rule system, supply limit enforcement by tracking total minted vs maximum, per-mint limit validation against transaction outputs, Merkle proof verification for allowlist checking, content hash validation for NFT metadata binding, PSBT validation for proper structure and asset operations, signature generation for approved transactions using appropriate keys (ECDSA/Schnorr), integration with registry for state queries and updates, comprehensive error reporting with specific validation failure reasons, logging system for audit trail of all validation decisions, and extensive unit tests for each validation rule with edge cases.",
+			"reasoning": "High complexity due to multiple validation rules, integration with registry and crypto modules, support for both covenant types, and need for comprehensive error handling. The validator is the core security component requiring careful implementation."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Develop Covenant Script Implementations",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Implement covenant scripts including: P2WSH witness script construction with validator public key checks, Taproot script tree construction with asset-specific leaves, script templates for different asset operations (mint/transfer/burn), witness data generation for P2WSH spending, Taproot control block construction for script path spending, integration with Bitcoin Core for script validation testing, and comprehensive tests using regtest to verify script execution.",
+			"reasoning": "Medium complexity as scripts are relatively simple (mainly signature checks) but require careful implementation to ensure Bitcoin consensus compatibility. The documentation shows simple validator signature scripts rather than complex on-chain logic."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Implement Merkle Proof System for Allowlists",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Build Merkle proof system with: Merkle tree construction from sorted address lists with proper leaf formatting, efficient tree building for large allowlists (10k+ addresses), proof generation for specific addresses with sibling hashes, proof verification logic with root hash comparison, caching system for frequently accessed proofs, protection against second-preimage attacks through proper domain separation, and performance benchmarks for large allowlist operations.",
+			"reasoning": "Medium complexity - Merkle trees are well-understood but require careful implementation for security and efficiency. Need to handle large datasets efficiently and prevent cryptographic attacks."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "Build Transaction Broadcasting and Network Interface",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Implement network layer with: Bitcoin Core RPC client with authentication and connection pooling, transaction broadcasting with automatic retry on failures, confirmation monitoring using ZMQ or polling, mempool monitoring for pending transactions, registry state updates upon confirmation, error handling with exponential backoff for network issues, support for multiple node connections for redundancy, and integration tests using regtest network.",
+			"reasoning": "Medium-high complexity due to network reliability concerns, need for proper error handling, confirmation tracking, and integration with Bitcoin Core RPC. Requires robust retry logic and state synchronization."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Create NFT Metadata and Content Management System",
+			"complexityScore": 6,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Build NFT system including: JSON schema definitions for NFT metadata (name, description, content URI), content hash generation and verification using SHA-256, collection manifest structure with token ID mapping, IPFS integration for decentralized content storage, HTTP gateway support for content retrieval, on-chain content storage via Taproot script paths (optional), metadata immutability enforcement through hash binding, collection-level rules and constraints, and comprehensive tests for content integrity verification.",
+			"reasoning": "Medium-high complexity due to multiple storage backends (IPFS, HTTP, on-chain), metadata schema management, content verification, and collection management. Requires integration with external services like IPFS."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Develop Command-Line Interface and Integration Tools",
+			"complexityScore": 5,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Create CLI with: Main command structure using Python's argparse or click, asset registration commands with validation, minting commands for fungible tokens and NFTs, registry query commands for asset information, validator management commands (start/stop/status), configuration file parsing and environment variable support, comprehensive help documentation for all commands, output formatting options (JSON, table, human-readable), and end-to-end integration tests for complete workflows.",
+			"reasoning": "Medium complexity as it primarily involves wrapping existing functionality with user-friendly interfaces. Requires good UX design and comprehensive error handling but doesn't involve complex logic itself."
+		}
+	]
+}

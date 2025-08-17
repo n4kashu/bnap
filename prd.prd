@@ -1,0 +1,447 @@
+<PRD>
+Bitcoin Native Asset Minting & NFT Issuance Platform - Product Requirements Document
+1. Introduction
+This Product Requirements Document outlines the development of a Bitcoin-native asset minting and NFT issuance platform for the Retest network. The document serves as a comprehensive guide for the development team, stakeholders, and project managers to understand the scope, requirements, and technical specifications necessary to build a minimum viable product (MVP) that enables the creation and management of fungible tokens and non-fungible tokens directly on the Bitcoin blockchain using advanced scripting capabilities.
+The platform leverages Bitcoin's Taproot and P2WSH technologies to create a secure, efficient, and privacy-preserving system for digital asset issuance while maintaining compatibility with standard Bitcoin transactions and existing wallet infrastructure.
+2. Product overview
+2.1 Product description
+The Bitcoin Native Asset Platform is a comprehensive solution for issuing and managing digital assets on the Bitcoin Retest network. The platform supports two primary asset types: fungible tokens (currencies, utility tokens) and non-fungible tokens (unique digital collectibles). Using colored outputs and covenant-based controls, the system enables secure asset creation while maintaining full Bitcoin compatibility.
+2.2 Key capabilities
+
+Dual covenant approach: Support for both Taproot (P2TR) and P2WSH formats
+Rule-based issuance: Enforced supply caps, per-mint limits, and allowlist restrictions
+Metadata management: Secure binding of content to NFTs via cryptographic hashes
+Registry system: Centralized tracking of asset rules and issuance state
+Validator component: Single-signer authority simulating multi-signature quorum
+Standard Bitcoin compatibility: All transactions are valid Bitcoin transactions
+
+2.3 Value proposition
+The platform provides organizations and developers with the ability to create Bitcoin-native assets without requiring additional blockchain layers or sidechains, ensuring maximum security and decentralization while leveraging Bitcoin's existing infrastructure and network effects.
+3. Goals and objectives
+3.1 Primary goals
+
+Enable secure issuance of fungible tokens and NFTs on Bitcoin's Retest network
+Demonstrate practical implementation of covenant-based asset controls
+Provide a foundation for future multi-validator consensus mechanisms
+Ensure complete compatibility with existing Bitcoin wallet infrastructure
+
+3.2 Success metrics
+
+Successfully mint and track at least 10 different fungible assets
+Issue and manage at least 100 unique NFTs across multiple collections
+Process 100% of valid mint requests that meet predefined rules
+Achieve zero unauthorized minting attempts
+Maintain 100% accuracy in registry state tracking
+Complete transaction finalization within 5 seconds of validation
+
+3.3 Business objectives
+
+Establish Bitcoin as a viable platform for digital asset issuance
+Reduce dependency on alternative blockchain networks for tokenization
+Provide cost-effective asset creation using Bitcoin's security model
+Enable new use cases for Bitcoin beyond simple value transfer
+
+4. Target audience
+4.1 Primary users
+
+Developers and technical teams: Organizations building Bitcoin-based applications requiring tokenization capabilities
+Digital artists and creators: Individuals seeking to issue NFT collections on Bitcoin
+Token issuers: Projects launching fungible tokens for utility or governance purposes
+Bitcoin ecosystem participants: Wallets, exchanges, and services integrating native Bitcoin assets
+
+4.2 User characteristics
+
+Technical proficiency: Intermediate to advanced understanding of Bitcoin transactions and scripting
+Use case diversity: Ranging from simple token creation to complex NFT collections
+Security requirements: High emphasis on asset integrity and authorization controls
+Integration needs: Requirement for standard Bitcoin transaction compatibility
+
+4.3 User needs
+
+Reliable and secure asset issuance mechanisms
+Clear documentation and integration guidelines
+Transparent rule enforcement and validation
+Efficient metadata management for NFTs
+Comprehensive tracking and registry capabilities
+
+5. Features and requirements
+5.1 Fungible token features
+5.1.1 Token issuance controls
+
+Maximum supply enforcement: Hard cap on total token units
+Per-mint limitations: Restrictions on units issued per transaction
+Allowlist support: Optional whitelist-based distribution
+Merkle proof verification: Cryptographic validation of allowlist membership
+
+5.1.2 Transaction structure
+
+Input management: Support for funding and control UTXOs
+Output creation: Generation of colored coin outputs with metadata
+OP_RETURN markers: Protocol tags and issuance metadata storage
+Change handling: Automatic calculation and return of excess funds
+
+5.2 NFT features
+5.2.1 NFT characteristics
+
+Unique identification: One-of-one token supply per NFT
+Content hash binding: Immutable linkage to digital content
+Collection management: Grouping of related NFTs with manifest
+Metadata structure: JSON-based descriptive information
+
+5.2.2 Content storage
+
+IPFS integration: Decentralized content hosting support
+Taproot envelope: On-chain content inscription capability
+URI flexibility: Multiple storage pointer schemes
+Hash verification: SHA-256 content integrity checks
+
+5.3 Validator requirements
+5.3.1 Core functions
+
+Registry maintenance: Asset rule and state management
+PSBT validation: Transaction inspection and rule verification
+Signature generation: Authorized signing of valid transactions
+State updates: Post-issuance registry synchronization
+
+5.3.2 Validation checks
+
+Supply verification: Total and per-mint limit enforcement
+Allowlist validation: Merkle proof verification
+Content hash matching: NFT metadata integrity checks
+Structure validation: Output and script format verification
+
+5.4 Technical infrastructure
+5.4.1 Script implementations
+
+P2WSH covenants: Witness script-based controls
+Taproot commitments: Tweaked key path spending
+OP_RETURN data: Metadata storage in outputs
+Signature schemes: ECDSA and Schnorr support
+
+5.4.2 Data formats
+
+PSBT templates: Partially signed transaction structures
+Registry format: JSON-based asset configuration
+Manifest structure: Collection and token metadata
+Proof formats: Merkle tree inclusion proofs
+
+6. User stories and acceptance criteria
+6.1 Authentication and access
+ST-101: Validator authentication
+
+As a validator operator, I want to securely authenticate to the system so that I can authorize legitimate mint transactions
+Acceptance criteria:
+
+Validator must provide valid private key for authentication
+System must verify key corresponds to registered validator public key
+Failed authentication attempts must be logged and rejected
+Session must timeout after 30 minutes of inactivity
+
+
+
+6.2 Fungible token management
+ST-201: Create fungible token
+
+As a token issuer, I want to create a new fungible token with defined rules so that I can control its distribution
+Acceptance criteria:
+
+Must specify unique asset ID, name, and symbol
+Must define maximum supply between 1 and 10^18 units
+Must set per-mint limit not exceeding maximum supply
+Must choose between Taproot or P2WSH format
+Registry must be updated with new token configuration
+
+
+
+ST-202: Mint fungible tokens
+
+As a token issuer, I want to mint new tokens according to predefined rules so that I can distribute them
+Acceptance criteria:
+
+Mint amount must not exceed per-mint limit
+Total supply after mint must not exceed maximum supply
+PSBT must be generated with correct outputs and metadata
+Validator must sign transaction after successful validation
+Registry must update issued amount after successful mint
+
+
+
+ST-203: Enforce allowlist restrictions
+
+As a token issuer, I want to restrict minting to allowlisted addresses so that I can control distribution
+Acceptance criteria:
+
+System must verify Merkle proof for recipient address
+Non-allowlisted addresses must be rejected
+Proof validation must complete within 100ms
+Failed attempts must be logged with reason
+
+
+
+6.3 NFT management
+ST-301: Create NFT collection
+
+As an NFT creator, I want to establish a new NFT collection so that I can issue unique tokens
+Acceptance criteria:
+
+Must define collection name and maximum token count
+Must provide collection manifest with metadata
+Must specify content storage method (IPFS or Taproot)
+Registry must track collection configuration
+
+
+
+ST-302: Mint individual NFT
+
+As an NFT creator, I want to mint a specific NFT with unique metadata so that it represents a distinct asset
+Acceptance criteria:
+
+Token ID must be unique within collection
+Content hash must match manifest declaration
+NFT output must be created for recipient address
+OP_RETURN must contain token ID and content hash
+Registry must mark token as issued
+
+
+
+ST-303: Verify NFT authenticity
+
+As an NFT holder, I want to verify my NFT's authenticity so that I can confirm its legitimacy
+Acceptance criteria:
+
+System must provide content hash from mint transaction
+Hash must match stored content when retrieved
+Collection manifest must include token entry
+Verification must complete within 500ms
+
+
+
+6.4 Transaction management
+ST-401: Generate PSBT for minting
+
+As a system operator, I want to generate valid PSBTs for mint transactions so that they can be signed and broadcast
+Acceptance criteria:
+
+PSBT must include all required inputs and outputs
+Witness scripts must be included for P2WSH inputs
+Taproot tweaks must be correctly applied
+OP_RETURN must contain proper protocol tags and data
+
+
+
+ST-402: Validate PSBT before signing
+
+As a validator, I want to thoroughly validate PSBTs so that only legitimate transactions are authorized
+Acceptance criteria:
+
+All asset rules must be checked and enforced
+Output structures must match expected formats
+Metadata commitments must be verified
+Invalid PSBTs must be rejected with specific error messages
+
+
+
+ST-403: Finalize and broadcast transaction
+
+As a system operator, I want to finalize signed PSBTs and broadcast them so that assets are created on-chain
+Acceptance criteria:
+
+All required signatures must be present
+Transaction must be valid according to Bitcoin consensus rules
+Broadcast must succeed on Retest network
+Transaction ID must be recorded in registry
+
+
+
+6.5 Registry and state management
+ST-501: Initialize registry
+
+As a system administrator, I want to initialize the asset registry so that the system can track all assets
+Acceptance criteria:
+
+Registry must load from JSON configuration file
+All asset entries must be validated for completeness
+Validator public keys must be verified
+System must reject invalid registry formats
+
+
+
+ST-502: Update registry state
+
+As a validator, I want the registry to automatically update after successful mints so that state remains accurate
+Acceptance criteria:
+
+Issued amounts must increment for fungible tokens
+Token IDs must be marked as issued for NFTs
+Updates must be atomic and consistent
+State changes must be persisted immediately
+
+
+
+ST-503: Query registry information
+
+As a user, I want to query the registry for asset information so that I can verify rules and state
+Acceptance criteria:
+
+Must return current supply for fungible tokens
+Must list issued token IDs for NFT collections
+Must provide validator public keys and rules
+Query response time must be under 100ms
+
+
+
+6.6 Database modeling
+ST-601: Design asset database schema
+
+As a system architect, I want to model the database structure so that all asset data is efficiently stored and retrieved
+Acceptance criteria:
+
+Must define tables for assets, transactions, and registry entries
+Must establish foreign key relationships between entities
+Must include indexes for common query patterns
+Schema must support both fungible and NFT asset types
+
+
+
+ST-602: Implement transaction history tracking
+
+As a system administrator, I want to store all minting transactions so that we maintain a complete audit trail
+Acceptance criteria:
+
+Must record transaction ID, timestamp, and type
+Must link transactions to specific assets
+Must store validator signatures and metadata
+Must support querying by asset ID or transaction ID
+
+
+
+6.7 Error handling and edge cases
+ST-701: Handle network failures
+
+As a user, I want the system to gracefully handle network failures so that operations can recover
+Acceptance criteria:
+
+Must retry failed broadcasts up to 3 times
+Must provide clear error messages for network issues
+Must maintain transaction state during failures
+Must allow manual retry of failed operations
+
+
+
+ST-702: Prevent double minting
+
+As a validator, I want to prevent double-spending of control UTXOs so that assets cannot be duplicated
+Acceptance criteria:
+
+Must track spent UTXOs in real-time
+Must reject PSBTs with already-spent inputs
+Must synchronize UTXO state across sessions
+Must handle blockchain reorganizations correctly
+
+
+
+ST-703: Manage invalid content hashes
+
+As an NFT creator, I want the system to reject invalid content hashes so that NFT integrity is maintained
+Acceptance criteria:
+
+Must validate hash format (32 bytes for SHA-256)
+Must verify hash matches actual content when possible
+Must reject transactions with mismatched hashes
+Must provide specific error messages for hash issues
+
+
+
+7. Technical requirements / Stack
+7.1 Core technologies
+
+Blockchain network: Bitcoin Retest network (regtest/testnet compatible)
+Programming languages: Python for validator logic, JavaScript for client libraries
+Cryptographic libraries: bitcoinlib, bitcoinjs-lib, btclib
+Script types: P2WSH (Pay-to-Witness-Script-Hash), P2TR (Pay-to-Taproot)
+
+7.2 Infrastructure components
+
+Transaction handling: PSBT (Partially Signed Bitcoin Transaction) format
+Signature schemes: ECDSA for P2WSH, Schnorr for Taproot
+Data storage: JSON-based registry, IPFS for NFT content
+Network protocol: Bitcoin P2P for transaction broadcast
+
+7.3 External dependencies
+
+IPFS nodes: For decentralized content storage
+Bitcoin node: Full node or SPV client for network interaction
+Web servers: For hosting manifests and metadata
+Database: PostgreSQL or similar for transaction history (optional)
+
+7.4 Security requirements
+
+Key management: Secure storage of validator private keys
+Access control: Authentication for validator operations
+Audit logging: Complete record of all validation decisions
+Backup and recovery: Registry state persistence and restoration
+
+7.5 Performance requirements
+
+Transaction validation: < 1 second per PSBT
+Signature generation: < 500ms per input
+Registry queries: < 100ms response time
+Concurrent operations: Support for 10+ simultaneous validations
+
+8. Design and user interface
+8.1 System architecture
+The platform follows a modular architecture with clear separation between validation logic, registry management, and transaction handling. The validator component serves as the central authority, interfacing with the registry for rule enforcement and the Bitcoin network for transaction broadcast.
+8.2 Integration interfaces
+8.2.1 Command-line interface
+
+Validation commands: Scripts for PSBT validation and signing
+Registry management: Tools for asset configuration and queries
+Transaction utilities: PSBT generation and broadcast helpers
+
+8.2.2 API endpoints
+
+REST API: HTTP endpoints for programmatic access
+JSON-RPC: Bitcoin-compatible RPC interface
+WebSocket: Real-time updates for transaction status
+
+8.3 Data formats and schemas
+8.3.1 PSBT structure
+
+Global fields with transaction metadata
+Input specifications with witness scripts
+Output definitions with asset information
+Signature fields for validator authorization
+
+8.3.2 Registry schema
+
+Asset definitions with rules and constraints
+Validator configurations and public keys
+Issuance state and transaction history
+Manifest references and content hashes
+
+8.4 User interaction flow
+8.4.1 Asset creation workflow
+
+Define asset parameters and rules
+Register asset in system registry
+Generate validator keys if needed
+Configure allowlists if applicable
+Publish manifests for NFT collections
+
+8.4.2 Minting workflow
+
+Create PSBT with desired outputs
+Submit PSBT for validation
+Validator checks rules and constraints
+Validator signs if validation passes
+Finalize and broadcast transaction
+Update registry with new state
+
+8.5 Error handling and feedback
+
+Validation errors: Specific messages for rule violations
+Network errors: Clear indication of connectivity issues
+State conflicts: Resolution strategies for concurrent operations
+Recovery procedures: Step-by-step guides for error recovery
+
+</PRD>

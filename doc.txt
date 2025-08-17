@@ -1,0 +1,641 @@
+Bitcoin-Native Asset Minting & NFT Issuance MVP (Retest Network)
+Overview
+
+This MVP outlines a system for issuing Bitcoin-native assets and NFTs on the Retest network (a Bitcoin test environment). It supports both Taproot (P2TR) and P2WSH (Pay-to-Witness Script Hash) formats for asset locking scripts, demonstrating two covenant approaches. Fungible assets are issued with rule-based controls (e.g. maximum supply and per-mint limit), while NFTs carry structured metadata (including a collection manifest, content hash, and content URI). All asset and NFT issuance transactions are standard Bitcoin transactions (compatible with testnet/regtest), so they can be broadcast and integrated into wallets.
+
+Core design: Assets are represented by colored outputs on Bitcoin. A centralized validator (single signer in this MVP) authorizes mints by signing transactions that meet all predefined rules. The validator’s logic enforces conditions like supply caps, allowlist restrictions, and metadata binding before signing. The validator effectively simulates a multi-signature quorum (in a future upgrade, multiple validators could be used) – for now one signature controls issuance, but all rule checks are implemented off-chain in the signing logic. Both Taproot and P2WSH covenant approaches are provided:
+
+Taproot approach: Using a tweaked Taproot key that commits to asset data/rules, allowing key-path spends when the validator signs (for efficiency and privacy
+river.com
+).
+
+P2WSH approach: Using an explicit witness script (covenant) that could enforce certain conditions on-chain and requires the validator’s signature as one spending condition
+dev.to
+.
+
+Asset types: Two asset types are supported – fungible tokens (multiple units, e.g. currencies or utility tokens) and non-fungible tokens (NFTs) (unique one-of-one tokens representing distinct items). Fungible asset outputs carry an asset quantity, while NFTs represent unique tokens (usually one per output). NFTs here are modeled similar to ordinal inscriptions or colored coins for unique collectibles: they are unique cryptographic tokens on the blockchain that cannot be replicated
+investopedia.com
+. Each NFT has associated metadata (like a digital collectible’s name, description, content hash, etc.). Metadata for NFTs is stored off-chain in JSON manifests (and/or via on-chain commitments) to avoid bloating the blockchain, with the on-chain transaction only storing a secure hash pointer to that metadata
+river.com
+. This ensures authenticity (content cannot be tampered with without changing the hash) while keeping on-chain data minimal.
+
+Below we detail the design for minting transactions, covenant scripts/keys, the validator component, and data formats. We also provide example PSBTs, scripts, registry entries, and JSON manifests as deliverables.
+
+Fungible Asset Minting Mechanism
+
+Rule-Based Issuance: Fungible assets are minted via special Bitcoin transactions that adhere to preset rules:
+
+Maximum Supply: Each asset has a fixed maximum supply (total units that can ever exist). The validator tracks the total minted so far and will not sign off on any transaction that would exceed this cap.
+
+Max per Mint: There is also a limit on the number of units that can be issued in a single transaction (to prevent one TX from minting an entire supply, if desired). For example, if max-per-mint is 1000 units, any attempt to mint more in one go is rejected by the validator.
+
+Allowlist (optional): If an asset uses an allowlist (whitelist) for distribution, only certain addresses can receive the newly minted tokens. The transaction must prove that the destination is on the allowlist (e.g. by providing a Merkle proof against an allowlist root in the registry). The validator will verify this proof before signing. (In a more advanced on-chain covenant, the script itself could verify an allowlist Merkle proof given the root, but in this MVP the check is done off-chain by the signing logic for simplicity.)
+
+Issuance transaction structure: An asset mint transaction will typically have:
+
+Inputs: At least one input providing BTC for transaction fees (and potentially an input from a previous asset control UTXO if using a covenant that maintains state, though in this MVP we primarily track state in the off-chain registry). The inputs can be any ordinary UTXOs; if using a P2WSH covenant, one input might be a control UTXO encumbered by the asset’s script (e.g. representing the authority to mint).
+
+Outputs:
+
+Asset output(s): One or more outputs that carry the newly minted asset. In Bitcoin terms, these are outputs carrying a nominal amount of BTC (usually dust amount like 546 satoshis) but “colored” to represent the asset. The asset’s identity can be indicated either by the script or the address. For instance, in the Taproot approach, the asset output is sent to a Taproot address derived specifically for that asset, so the address itself implies the asset type. In the P2WSH approach, the output might be a P2WSH whose witness script includes the asset ID. In either case, the output’s scriptPubKey is constructed such that it’s associated with the asset being minted. The value (in sats) of the output is not directly related to asset quantity – the actual token count is tracked via metadata (similar to colored coin protocols).
+
+Marker output (metadata): An OP_RETURN output carrying issuance metadata. This output has OP_RETURN in its script and carries data fields encoding the asset information. For example, we may include a protocol tag, the asset ID, and the quantity of asset units issued to each asset output. (This is analogous to the Open Assets protocol marker output
+en.bitcoin.it
+ which contains asset quantity and an optional metadata hash.) In our MVP, the OP_RETURN could contain: a tag (e.g. “ASSET”), the asset ID, the number of units minted in this transaction, and potentially a hash or reference to an external asset manifest (for descriptive metadata like name/symbol).
+
+Change output: If the input BTC exceeds the needed fees, a change output back to the issuer’s wallet.
+
+Only the validator can create a valid mint transaction for a given asset, because one of the inputs or outputs will be encumbered by the validator’s control (requiring its signature or satisfying its script). This prevents unauthorized minting. The validation logic off-chain ensures the rules (cap, etc.) are obeyed, and then the validator signs the PSBT to authorize it.
+
+Example – Fungible Asset PSBT: Below is a conceptual template for a fungible asset mint PSBT (Partially Signed Bitcoin Transaction):
+
+Inputs:
+
+Input 0: Funding UTXO (e.g. from issuer’s wallet, P2WPKH) providing sats for fees.
+
+(Optional Input 1: Current asset control UTXO encumbered by a covenant script, if the design requires spending it to update state.)
+
+Outputs:
+
+Output 0: Asset output (colored coin) – e.g. a Taproot or P2WSH address associated with the asset’s rules. It carries a minimal BTC value (dust) and represents, say, 500 units of “MyToken”.
+
+Output 1: Marker OP_RETURN – contains protocol tag and metadata. For example:
+
+OP_RETURN 0x4d5954 0x01F4 (where 0x4d5954 is “MYT” asset tag, and 0x01F4 is 500 in hex, indicating 500 units minted to Output 0). Additional bytes could include a hash of the asset manifest or other details.
+
+Output 2: Change back to issuer (if any).
+
+PSBT Fields:
+
+Global: unsigned TX details (version, locktime, etc.).
+
+Input fields: for each input, include UTXO information. For the P2WSH input (if present), include the redeem script/witness script and any key paths.
+
+Output fields: for the asset output, if it’s P2WSH, include the script (witness script or scriptPubKey) in PSBT output so wallets know how to track it; if Taproot, include the internal key and tweak info if needed (or simply treat it as a normal output since it’s standard P2TR).
+
+The PSBT would be partially signed by the issuer for the funding input, and awaiting the validator’s signature for the asset control input or Taproot key.
+
+This PSBT, once the validator signs, becomes a valid issuance transaction. It can then be finalized and broadcast on the Retest network. The outputs will then denote that 500 units of MyToken have been issued, and the asset output is controlled (locked) by whoever the recipient is (it could be the issuer themselves or a user receiving the tokens).
+
+P2WSH Covenant Script (Fungible): For the P2WSH version, the asset’s authority might be controlled by an encumberance script. A simple covenant script example is:
+
+<Validator PubKey> OP_CHECKSIG
+
+
+This script (hashed in a P2WSH address) means only the validator’s signature can spend this output. The validator would keep an unspent output at this address representing the right to mint. When minting new tokens, that UTXO is spent (requiring the validator’s sig) and typically re-created in the outputs (if we want to allow future mints). This way, the script itself doesn’t explicitly enforce supply – the off-chain logic does – but it ensures no one but the validator can initiate a mint. We could extend this script to enforce more rules on-chain. For example, we might include an OP_CHECKSIG to enforce the signature and use OP_PUSH/OP_HASH checks to bind certain values:
+
+We could commit the asset’s max supply or asset ID in the script as a constant (just for clarity or future covenant checks).
+
+We could use a construct with OP_CHECKSIGVERIFY along with OP_SHA256 checks on some data in the transaction to simulate a covenant. However, Bitcoin Script has limited introspection (no direct opcodes to inspect output amounts or asset metadata). A creative approach is using the signature’s message (sighash) to indirectly commit to outputs. (This is complex and not fully implemented here; instead, our validator ensures outputs are correct.)
+
+Thus, the provided P2WSH script remains simple. The presence of the validator’s signature itself is the enforcement. This approach trusts the validator not to sign invalid mint transactions (which in our design is acceptable as the validator is part of the system).
+
+Taproot Asset Address: In the Taproot approach, each asset can be associated with a unique Taproot output key. We derive a Taproot address that encodes the asset’s identity and rules via the tweak: the internal key is typically the validator’s public key (or an aggregate of keys, if a quorum were used). We then define a Taproot script tree specific to the asset:
+
+For example, include a leaf in the Taproot tree that contains the asset’s metadata hash or a tag. This leaf might be a OP_RETURN or OP_TRUE branch just to commit data. The actual spending will use the key path (so this script is never executed, only its hash is merged into the Taproot Merkle root).
+
+The result is an output key tweaked by the asset-specific data. The taproot output key P is computed as P = P_internal + H_TapTweak(P_internal || merkle_root)*G
+en.bitcoin.it
+. Here merkle_root is derived from the script leaf nodes (e.g. a leaf containing the asset ID or max supply). This means the final Taproot address is unique to the asset (since the tweak changes if the asset-specific script is different). Only the holder of the internal key (the validator) can sign to spend via the key path
+en.bitcoin.it
+, and that signature will only be valid if the same tweak (asset script) is used in computing the sighash. Thus, the validator when signing will use the tweaked secret key corresponding to that asset’s output
+en.bitcoin.it
+.
+
+In practice, the Taproot asset output is just a P2TR output (bech32m address starting with tb1p on testnet) controlled by the validator’s key. On chain, it looks like a normal single-sig Taproot output (very space-efficient, no script revealed) – outsiders cannot tell it encodes an asset commitment
+river.com
+. The asset metadata (e.g. in the OP_RETURN output) and the registry are used to interpret that this output represents, say, 500 units of MyToken. When the asset is transferred or more minted, the same Taproot address or a known scheme will be used to track it.
+
+NFT Minting Mechanism
+
+NFT Issuance: Minting a non-fungible token (NFT) means creating a unique asset with an immutable identity and associated metadata. In this MVP, each NFT is issued as a separate output (usually one NFT per transaction for simplicity, though one could batch mint multiple NFTs in one TX by having multiple outputs each with distinct metadata commitments). Key aspects for NFTs:
+
+Unique ID & Supply: Each NFT is one-of-one (supply cap = 1 for each token). The system might generate a unique asset ID or use the content hash as the identifier. All NFT IDs within a collection are tracked to prevent duplicates.
+
+Metadata Binding: The NFT’s content and attributes are described in a metadata JSON (off-chain file or IPFS). We ensure the on-chain transaction carries a content hash that ties the token to that specific metadata. For example, if the NFT image or JSON metadata has a SHA-256 hash H, the mint transaction should include H (or a hash derived from the content) so that anyone can verify the token corresponds to that exact content
+river.com
+. This prevents altering the NFT’s content later – a critical integrity feature.
+
+Collection Manifest: NFTs often belong to a collection. We include a collection-level manifest (a JSON file listing all NFTs in the series, or providing common information like collection name, description, and a list of each token’s hash and URI). The collection manifest itself can be hashed and the hash recorded either in the registry or on-chain (e.g. in the first mint of that collection). This way, one can verify an NFT’s content hash appears in the collection manifest, ensuring the NFT is authentic and part of that collection.
+
+Content URI: In addition to the hash, we provide a URI where the content or metadata can be retrieved. This could be an IPFS CID (e.g. ipfs://...) or a web URL. For redundancy, multiple URIs can be supported. We specifically aim to support at least two storage pointer schemes:
+
+IPFS: The NFT metadata or content is stored on IPFS. The URI (or CID) can be included in the JSON manifest. The content hash (which may be the IPFS CID’s hash or a separate SHA256) is what we bind on-chain.
+
+Taproot Envelope: This refers to storing the NFT content or reference on-chain using Taproot scripting. Essentially, one can embed data in a Taproot output’s witness (as done in Ordinals “inscriptions”). For example, the NFT’s image or asset file can be committed in a Taproot script path (with something like an unexecuted branch containing the data blob). A Taproot envelope pointer could be a reference (like a txid and output index) where the actual content is inscribed on-chain. In our metadata, we might have a field like "onchain_ref": "<txid>:<vout>" to indicate the content is stored in that output via a Taproot reveal. This approach ensures permanence (the data lives in the blockchain) and leverages witness data (which is cheaper due to weight discount), at the cost of larger transaction size
+bitcointalk.org
+. For the MVP, we consider the pointer sufficient (we won’t implement the full inscription, just allow referencing it).
+
+NFT Mint Transaction: The structure is similar to fungible, with differences:
+
+Inputs: Funding input(s) and likely a validator control input (to authorize the mint). If an allowlist is in effect for an NFT drop (e.g. only certain addresses can mint an NFT), the minter’s address needs to be proven.
+
+Outputs:
+
+NFT output: The output representing the NFT, sent to the owner’s address. This could be a Taproot output or a P2WSH output. The simplest approach is to send the NFT to a normal address of the owner (P2WPKH or P2TR) after issuance. However, doing so immediately loses the on-chain enforceable link to content unless we use a covenant. An alternative is to keep the NFT locked in a script that requires any transfer to carry along the content hash. For example, a covenant script for NFT might enforce that when spent, the same hash is included in an output. Given Bitcoin’s limitations, this is tricky without custom opcodes. Instead, we rely on the fact that the NFT’s unique identifier and hash were set at issuance and recorded in manifests; subsequent transfers don’t need to repeat the hash on-chain as long as the token ID (which is bound to that hash via the manifest) is tracked. So, output 0 can just be a regular spendable output for the new owner (e.g. P2TR or P2WPKH to the user’s key). The token is “owned” by whoever holds that UTXO. Transfers of the NFT are just BTC transactions moving that UTXO to new owners, and off-chain infrastructure (wallets, indexers) maintain the link between that UTXO and the NFT metadata (using the initial mint record as the anchor).
+
+Marker output: An OP_RETURN carrying the NFT metadata commitment. This can include:
+
+A protocol tag (e.g. “NFT”) and version byte.
+
+The collection ID or asset ID for the NFT.
+
+The content hash (e.g. 32-byte SHA256 or Digest of the NFT’s content or metadata file).
+
+Optionally, a shorter identifier for the NFT (like a serial number within the collection). For instance, if collection “ArtCollection” has NFT #42, we encode 42.
+
+We might also include a hash of the entire JSON metadata or a pointer to it (e.g. a hash of the collection manifest or the IPFS CID for the metadata JSON).
+
+If an allowlist was used, the OP_RETURN could include an indicator that a certain allowlist entry was consumed (though typically allowlist is verified off-chain and not recorded on-chain in simple implementations).
+
+For example, an OP_RETURN script might contain:
+OP_RETURN <COLL_ID> <TOKEN_ID> <ContentHash>
+Where COLL_ID could be a hash representing the collection, TOKEN_ID is the NFT index, and ContentHash is the SHA256 of the content (or metadata JSON). This on-chain record binds the token to its content.
+
+Example – NFT Mint PSBT:
+
+Inputs:
+
+Input 0: Funding input (from minter’s wallet or the validator’s wallet, covering fees).
+
+Input 1: Validator’s control input (e.g. a P2WSH output requiring validator’s signature). It authorizes the creation of the NFT.
+
+Outputs:
+
+Output 0: NFT output to recipient’s address. Suppose Alice is allowed to mint and is the recipient; her taproot or segwit address goes here. This output has a tiny BTC value (say 600 satoshis) but represents ownership of the NFT. (The output script is just Alice’s public key hash or taproot, so spending this later requires Alice’s key – standard ownership.)
+
+Output 1: OP_RETURN metadata – containing the NFT’s identifiers and content hash. For instance, it could be:
+OP_RETURN 0x4e4654 <AssetID> <Hash>
+(“NFT” tag + asset ID + hash). If the asset ID for this NFT is computed as, say, the hash of the collection ID and token ID, we could include just that. The content hash ensures the NFT’s content can be verified.
+
+(Optional Output 2:) Change back to whoever provided the funding, if needed.
+
+PSBT Details: Similar to the fungible case, include the witness script for Input 1 (e.g. the validator’s P2WSH script) and any necessary keypath information. The PSBT will be signed by the validator (and by the funding input owner if that’s separate).
+
+Covenant Considerations for NFT: In a more advanced design, one might implement a transfer covenant for NFTs so that the NFT cannot be separated from its identity:
+
+For example, the NFT could be initially locked in a script that says: to spend this, you must provide a new output with the same content hash in an OP_RETURN. This ensures every transfer carries the content hash forward (so future owners can always find it on-chain without external lookup). Such a script might use the signature trick or OP_CHECKSIG with SIGHASH_SINGLE to enforce a specific output
+scryptplatform.medium.com
+scryptplatform.medium.com
+. However, implementing this in Bitcoin Script without OP_CAT is complex. Given the MVP scope, we assume once minted, the NFT can be treated as a normal UTXO (tracked by off-chain indexers). The initial issuance record suffices to bind the NFT to its data permanently.
+
+Another approach is a Taproot covenant: include a tapscript path that can be used to re-issue or transfer the NFT under certain conditions (e.g. one path that allows the owner’s signature to move it, another that allows a sale with the validator ensuring payment). This is similar to advanced contracts like Ordinal sales or DLCs, but is beyond MVP needs. We note it as a future extension.
+
+Taproot vs P2WSH for NFT: We provide both:
+
+Taproot: The NFT can be minted to a Taproot output. The validator’s internal key plus a script leaf (committing the content hash or asset ID) yield a tweaked output key as described earlier. The difference from fungible is that this taproot might be one-time (for that NFT specifically). We could even make the NFT’s own key part of the tweak – e.g. the recipient’s pubkey is the internal key and we tweak it with a leaf containing (validator pubkey + content hash), yielding an output that both locks to the recipient and is bound to the content. That way, the NFT output requires the recipient’s key to spend (so they own it), but the tweak ensures the content hash is committed (for future covenant checks, if any). This is an intriguing design: using Taproot’s flexibility to embed data in the output’s public key itself
+river.com
+. However, for simplicity we may not implement that fully; we will just mention the concept.
+
+P2WSH: Alternatively, an NFT can be locked in a P2WSH script. For instance:
+
+<Owner PubKey> OP_CHECKSIGVERIFY  
+<ContentHash> OP_SHA256 OP_EQUAL 
+
+
+This hypothetical script means: the output can be spent only if a signature from the owner is provided and (after that) the same content hash is revealed and matched. But since outputs of the spending transaction aren’t directly accessible, this script as-is doesn’t enforce the hash on a new output, it would only check some provided value matches the hash. It’s more a demonstration that we could insist the content hash be acknowledged during spending (though not effectively forcing it into a new output without advanced tricks). Thus, in MVP, we won’t rely on script-level enforcement for metadata, we rely on the one-time inclusion at mint.
+
+Validator Logic and Minimal Registry
+
+The validator is a crucial off-chain component. It acts as a gatekeeper that ensures all mint transactions conform to the asset’s rules. In this MVP, the validator is represented by a single signing key (e.g., a Schnorr key pair for Taproot or ECDSA for P2WSH) whose public key is known and listed in a registry. In a real multi-sig quorum, multiple validators would collectively sign; here we simulate it with one signer for simplicity.
+
+Validator responsibilities:
+
+Maintain Registry: The validator holds or has access to a registry of all assets and their rules. This registry is a data structure (could be a JSON file, database, or simply in-memory list for our demo) that defines:
+
+Asset ID (or unique name/symbol).
+
+Asset type (fungible or NFT collection).
+
+Maximum supply (for fungible, total units; for NFT collection, total NFTs or max token ID).
+
+Max per mint (for fungible; for NFTs this would be 1).
+
+Validator public key(s) associated (so the system knows which key will sign for this asset).
+
+Allowlist root if applicable (e.g. a Merkle root of allowed addresses for initial distribution).
+
+Metadata pointers: e.g. for NFTs, the collection manifest hash or URL; for fungible, maybe a link to an asset info JSON.
+
+Current supply or issuance state (how much has been minted so far, or which NFTs have been minted). This can be updated as new issuances occur.
+
+Validate PSBT: When a new minting PSBT is proposed (by a user or the issuer), the validator software will inspect it against the registry:
+
+Identify which asset or NFT it concerns (this might be encoded in the PSBT’s outputs, e.g. reading the OP_RETURN data or the script template).
+
+Check the supply limits: sum of newly issued units + previously issued <= max supply. If an NFT, ensure we haven’t issued that token ID before and it doesn’t exceed collection count.
+
+Check max per mint: for fungible, ensure output quantity does not exceed the per-tx cap.
+
+Verify allowlist proof: if the asset or NFT requires an allowlist, the PSBT should include some evidence (perhaps an input or an extra PSBT field with a Merkle proof). The validator will hash the provided address with the proof and compare to the stored Merkle root. If it doesn’t match or the address isn’t allowed, reject. For example, if Alice is minting an NFT from a limited pre-mint list, she would supply a proof that her address is in the allowlist; the validator confirms this. (In the actual Bitcoin transaction, this proof could be placed in an input’s witness for on-chain verification if we had a script to check it, but here it’s purely off-chain.)
+
+Verify content hash binding (for NFT): The PSBT’s OP_RETURN should have the expected content hash. The validator can cross-check this against the provided metadata or collection manifest. For instance, if the user is trying to mint “Art #42” and claims content hash H, the validator might load the manifest for that collection (which lists hash for token 42) and ensure it matches H. This prevents someone from minting a token with an incorrect or malicious content reference.
+
+Check transaction structure: Ensure outputs and scripts are correctly formed (e.g. the asset output is going to the right type of address, the OP_RETURN is present and well-formatted, no extraneous outputs that could break the scheme, etc.). Also verify that the spending conditions are being preserved (for P2WSH, the validator might ensure that if it spends a previous asset control UTXO, a new one of the same script is created if further minting is allowed).
+
+Once all conditions are satisfied, the validator signs the PSBT with its private key for the relevant input or Taproot key path.
+
+Sign and Finalize: The validator will apply its signature. For P2WSH, this means providing the ECDSA signature in the witness for the input containing the redeem script (and including the full witness script in the PSBT if not already). For Taproot, this means computing the Schnorr signature for the transaction hash using the tweaked secret key (as per BIP340/341)
+en.bitcoin.it
+. We produce a witness stack with the signature (and possibly the control block if we were using a script path – but in our design we stick to key path, so just a signature is needed). After signing, the PSBT can be finalized to a raw transaction.
+
+Update Registry State: If the transaction is finalized and broadcast, the registry should be updated. E.g., increase the minted supply count for the fungible asset, mark an NFT token ID as issued, etc. This ensures subsequent mints will account for the new state.
+
+Validator Signing Stub: As a deliverable, a simple signing script can be provided. For example, in Python pseudocode:
+
+from bitcoin import PSBT, Key  # hypothetical libraries
+
+def sign_mint_psbt(psbt_base64, registry, validator_privkey_wif):
+    psbt = PSBT.from_base64(psbt_base64)
+    # Parse outputs to identify asset
+    asset_id = parse_asset_id_from_psbt(psbt)
+    asset_info = registry.get(asset_id)
+    if not asset_info:
+        raise Exception("Unknown asset")
+    if asset_info.type == "fungible":
+        new_amount = parse_new_asset_amount(psbt)  # from OP_RETURN or output
+        if asset_info.issued + new_amount > asset_info.max_supply:
+            raise Exception("Exceeds max supply")
+        if new_amount > asset_info.max_per_mint:
+            raise Exception("Exceeds per-mint limit")
+    elif asset_info.type == "NFT":
+        token_id, content_hash = parse_nft_info(psbt)  # from OP_RETURN
+        if token_id in asset_info.issued_tokens:
+            raise Exception("NFT already issued")
+        if asset_info.allowlist_root:
+            addr = parse_recipient(psbt)
+            proof = psbt.inputs[0].extra_data["allowlist_proof"]
+            if not verify_merkle_proof(asset_info.allowlist_root, addr, proof):
+                raise Exception("Address not in allowlist")
+        # Verify content hash matches manifest
+        if asset_info.manifest_hash:
+            manifest = load_manifest(asset_info.manifest_url)
+            if manifest[token_id]["contentHash"] != content_hash:
+                raise Exception("Content hash mismatch")
+    # If all checks pass, sign the PSBT:
+    validator_key = Key.from_wif(validator_privkey_wif)
+    signed_psbt = psbt.sign(validator_key)  # signs the appropriate input or taproot key
+    return signed_psbt.to_base64()
+
+
+The above is illustrative. It assumes the PSBT has clear markers for asset info (in practice, parsing the OP_RETURN data or specific output script would yield the asset ID and amounts). The verify_merkle_proof would implement Merkle inclusion check. The stub would output a signed PSBT (or final TX). For a JS implementation, a similar approach using bitcoinjs-lib could be taken.
+
+Minimal Registry Format: The registry can be represented in JSON for simplicity. Here’s a minimal example with one fungible asset and one NFT collection:
+
+{
+  "assets": [
+    {
+      "assetID": "asset1abcdef...",
+      "name": "TestToken",
+      "type": "fungible",
+      "maxSupply": 1000000,
+      "maxPerMint": 100000,
+      "issued": 250000,
+      "validatorPubKey": "02ABC123... (Schnorr/Taproot pubkey)",
+      "allowlistRoot": null,
+      "manifest": "https://example.com/TestToken.json"
+    },
+    {
+      "assetID": "collection1xyz...",
+      "name": "ArtCollection",
+      "type": "NFTCollection",
+      "maxSupply": 10,
+      "issuedTokens": [0,1,2],  // NFTs already minted (IDs)
+      "validatorPubKey": "02ABC123... (same validator)",
+      "allowlistRoot": "5f2d...89ac",  // Merkle root for allowed minters
+      "manifest": "ipfs://Qm.../ArtCollection.json",
+      "manifestHash": "d45f...7890"   // hash of the collection manifest file for integrity
+    }
+  ]
+}
+
+
+In this structure:
+
+assetID is a unique identifier. It could be a hash or a human-readable code. (In practice it might be computed as hash(prevTx:outIndex) for a genesis transaction, like colored coins do, but here we can just define one).
+
+issued (for fungible) tracks how many units have been minted so far; issuedTokens (for NFT collection) is a list of indices issued.
+
+validatorPubKey is the hex of the Schnorr public key for Taproot (which could also be reused in a P2WSH script if converted to X9.62 format for ECDSA, or we could have a separate ECDSA key).
+
+allowlistRoot is given for the NFT collection, indicating only certain addresses can mint those NFTs initially.
+
+manifest is a pointer to metadata: for the fungible token, maybe a JSON with details (name, symbol, etc.); for the NFT, a collection manifest on IPFS.
+
+manifestHash can be used to verify the manifest file hasn’t been tampered with.
+
+The registry would be loaded by the validator program on start.
+
+Example Deliverables
+PSBT Templates for Minting
+
+Below are example PSBTs (in decoded form for clarity) for a fungible asset mint and an NFT mint on regtest/testnet. They are templates, meaning hex values are placeholders (not actual signed values), to illustrate the structure:
+
+Fungible Asset Mint PSBT (TestToken issuance):
+
+Inputs:
+
+Input 0: TXID=aaaaaaaa...:0, witness UTXO 0.01 BTC from issuer’s wallet (P2WPKH).
+PSBT Input fields: witness_utxo with scriptPubKey (P2WPKH), bip32_derivation for issuer’s pubkey (for signing this input).
+
+Input 1: TXID=bbbbbbbb...:1, Asset control UTXO (P2WSH) of TestToken, value 0.0001 BTC.
+PSBT Input fields: witness_utxo with scriptPubKey = HASH160(redeemScript), redeem_script = <ValidatorPubKey> OP_CHECKSIG, bip32_derivation for validator pubkey (if available), etc.
+
+Outputs:
+
+Output 0: Asset output – New P2WSH (or P2TR) output for TestToken holding newly minted 10000 units. For example, a P2WSH with the same redeem script <ValidatorPubKey> OP_CHECKSIG (continuing the covenant for future mints) or a P2TR address derived for TestToken. Value = 0.0001 BTC (dust).
+PSBT Output fields: if P2WSH, include the redeem script (witness script) here as well; if P2TR, no special field needed aside from maybe tapTree if we want to communicate the committed script (not strictly required for basic signing).
+
+Output 1: Marker OP_RETURN – script: OP_RETURN <0x545354> <0x000186A0>. Here 0x545354 is ASCII “TST” (an example asset tag for TestToken) and 0x000186A0 is 1000000 in hex (indicating total supply or some issuance metadata). We could also encode just the quantity issued in this tx (10000 = 0x2710). The OP_RETURN has no value (0 BTC).
+
+Output 2: Change output P2WPKH back to issuer, value ~0.0099 BTC.
+
+Unsigned TX Details: version 2, locktime 0, etc., with the above inputs and outputs.
+
+At this stage, the PSBT would have:
+
+Input0 partially signed by the issuer (their P2WPKH key).
+
+Input1 not signed yet (requires validator).
+
+The validator would then verify the OP_RETURN data and outputs (10000 new units doesn’t exceed caps, etc.) and sign Input1. After signing and finalizing, the witness for Input1 will be [signature] [PubKey] for the redeem script. The final TX can be broadcast, resulting in Output0 being the new asset UTXO locked by the validator (and also effectively marking 10000 TestToken assigned to whoever can spend that UTXO, likely the validator or issuer themselves if they control that script’s key).
+
+NFT Mint PSBT (ArtCollection token #3):
+
+Inputs:
+
+Input 0: TXID=cccccccc...:2, 0.001 BTC from Alice’s wallet (the minter, P2WPKH), providing fees and proving Alice’s ownership (if needed for allowlist).
+
+Input 1: TXID=dddddddd...:0, validator’s control UTXO (either a P2WSH requiring validator sig or just any UTXO of the validator if using key path Taproot for control).
+
+Outputs:
+
+Output 0: NFT output to Alice’s address. Suppose Alice provided a Taproot address (tb1p...alice...). This output locks 546 satoshis to Alice’s key (meaning Alice owns the NFT now). Value = 0.00000546 BTC.
+
+Output 1: OP_RETURN – OP_RETURN <0x4E4654> <CollectionID> <TokenID> <ContentHash>. For example:
+
+0x4E4654 is “NFT” tag.
+
+<CollectionID> = hash of "ArtCollection" (say 0xabcd1234).
+
+<TokenID> = 0x03 (for token #3).
+
+<ContentHash> = 32-byte SHA256 of the token’s content (image or metadata file). e.g. 0x1fa2b3... (placeholder).
+This output has 0 BTC value.
+
+Additional data for allowlist: The PSBT might include Alice’s allowlist proof as an proprietary field. Alternatively, the fact that Input0 is signed by Alice may itself serve as proof of identity (since if the allowlist is by address, Alice’s address is present as output0’s destination and also she provided input0 from her address). The validator can simply check that Output0’s address = Alice’s address, and that address was on the allowlist. If a proof is needed, it could be an extra 32-byte field with a Merkle path.
+
+The PSBT would be signed by Alice for Input0, and by the validator for Input1 (after validating content hash, etc.). The final transaction when broadcast creates an NFT owned by Alice. Later on, if Alice wants to transfer it, she would just spend Output0 like any Bitcoin output, sending it to a buyer’s address – out-of-band, the NFT metadata from the mint transaction (collectionID, tokenID, contentHash) is used to inform wallets what that UTXO represents.
+
+Witness Scripts (P2WSH) and Taproot Tweaked Keys
+
+We provide the representative scripts and key constructions used:
+
+Fungible Asset P2WSH Script (TestToken):
+
+# TestToken covenant script (P2WSH)
+<ValidatorPubKey> OP_CHECKSIG
+
+
+As discussed, this script ensures only the validator can spend. On spending (to mint tokens), the same script is typically re-created in an output for future use (unless the asset is fully minted and we choose to retire the control UTXO).
+
+NFT P2WSH Script (if used for holding NFT):
+
+<OwnerPubKey> OP_CHECKSIGVERIFY
+<ContentHash> OP_SHA256 OP_EQUAL
+
+
+This script would require the owner’s signature to spend, and then check that a provided content hash matches the one committed. However, since there’s no condition on outputs here, this only makes sense if we require the spender to push the content hash as part of the unlocking script (which they could, but they could also just satisfy it trivially by pushing the correct hash – it doesn’t enforce it into a new output). So in practice this script would mainly serve to not allow spending at all unless the correct content hash is revealed – not highly useful without coupling to a new output. It’s presented here to show how a content binding could be started. We decided to give NFTs directly to a user address instead in this MVP.
+
+Taproot Key Tweaks:
+For each asset, we define the Taproot output key as P = P_internal + h*G
+en.bitcoin.it
+, where P_internal is the internal public key and h = H_TapTweak(P_internal || MerkleRoot) is the tweak hash.
+
+For fungible assets, MerkleRoot can be computed over a single-leaf script containing the asset tag or max supply. For example, a leaf script could simply be:
+
+0x{AssetID} OP_DROP OP_TRUE
+
+
+with version 0xc0. We then hash this with TapLeaf and TapBranch (as there’s only one leaf, the Merkle root is just TapLeaf). The resulting root is unique to that asset. Plugging it in yields a unique P2TR address. The validator knows the internal secret key, so it can spend via key path easily. Outsiders just see a Taproot output that reveals nothing (since we always spend by key path, the script is never revealed). This technique is how Taproot Assets and similar protocols hide asset metadata in outputs
+river.com
+.
+
+For NFT collections, we could similarly tweak per collection or even per token. For instance, the internal key could be the validator’s key aggregated with the owner’s key (so that both must cooperate to spend, which is another way to enforce rules). But to keep it simple: the internal key = validator’s key. The Merkle root could commit the collection ID. If we wanted per-token unique tweak, we might include tokenID or content hash in a leaf – but then each NFT would have a distinct address. That’s feasible but then the NFT would not be sent to the user’s own address directly; rather the NFT would reside at a Taproot output that only the validator can spend (since only validator has the key) – not ideal for ownership. Therefore, we likely don’t use Taproot tweak to differentiate individual NFTs in this MVP, beyond possibly tagging the whole collection’s UTXOs. Instead, we just mark NFTs via OP_RETURN and give them to user addresses for simplicity.
+
+In summary, Taproot outputs are used for efficiency and privacy: the asset rules can be hidden inside the Taproot commitment (reducing on-chain footprint). The validator’s single signature spends are indistinguishable from any Bitcoin spend (making the asset transactions look like normal payments)
+river.com
+. P2WSH outputs are used when we want explicit scripts controlling the UTXO (useful for demonstration of covenants or if we wanted to reveal the conditions). Both address types use Bech32 encoding: e.g., on testnet, P2WSH addresses start with tb1q and P2TR with tb1p
+dev.to
+.
+
+Validator Signing Stub (Python example)
+
+Below is a simple Python stub for the validator signing process, demonstrating how it would enforce rules and sign. This uses pseudocode and assumes existence of utility functions for Bitcoin PSBT handling:
+
+import hashlib
+from btclib.psbt import PSBT  # hypothetical PSBT library
+from btclib import schnorr
+
+# Load registry (as a Python dict similar to the JSON above)
+registry = load_registry("registry.json")
+validator_priv = bytes.fromhex("<validator private key here>")  # 32-byte scalar
+
+def validate_and_sign_mint(psbt_bytes: bytes) -> bytes:
+    psbt = PSBT.parse(psbt_bytes)
+    # Determine asset from PSBT:
+    asset_id = None
+    new_amount = 0
+    content_hash = None
+    token_id = None
+    recipient_addr = None
+    is_nft = False
+
+    # Extract OP_RETURN data from outputs
+    for out in psbt.outputs:
+        if out.script_pubkey[:1] == b'\x6a':  # OP_RETURN
+            data = out.script_pubkey[2:]  # skip OP_RETURN and length byte
+            tag = data[:3].decode('ascii')
+            if tag == 'TST':  # fungible asset example tag
+                asset_id = "asset1abcdef..."
+                # parse issued amount from data...
+                new_amount = int.from_bytes(data[3:7], 'big')
+            elif tag == 'NFT':
+                is_nft = True
+                # parse collection and token info
+                asset_id_bytes = data[3:3+32]  # assuming collection ID hash 32 bytes
+                asset_id = asset_id_bytes.hex()
+                token_id = int.from_bytes(data[35:36], 'big')
+                content_hash = data[36:36+32].hex()
+    if asset_id is None:
+        raise Exception("Asset not identified in PSBT")
+
+    asset = registry[asset_id]
+    # Common check: validator pubkey must match expected (for signing authority)
+    # (In practice ensure we're the right validator for this asset)
+    if asset['validatorPubKey'] != get_pubkey_from_priv(validator_priv).hex():
+        raise Exception("Validator key mismatch")
+
+    if asset['type'] == 'fungible':
+        # Supply checks
+        if asset['issued'] + new_amount > asset['maxSupply']:
+            raise Exception("Supply cap exceeded")
+        if new_amount > asset['maxPerMint']:
+            raise Exception("Mint amount exceeds max per mint")
+    elif asset['type'] == 'NFTCollection':
+        if token_id in asset['issuedTokens']:
+            raise Exception("NFT already minted")
+        if token_id >= asset['maxSupply']:
+            raise Exception("Token ID out of range")
+        # Allowlist check
+        if asset.get('allowlistRoot'):
+            recipient_addr = extract_recipient_address(psbt)
+            proof = psbt.inputs[0].unknown.get(b'AL proof')  # assume allowlist proof in proprietary field
+            if not verify_merkle_proof(asset['allowlistRoot'], hashlib.sha256(recipient_addr).digest(), proof):
+                raise Exception("Address not in allowlist")
+        # Content hash check
+        if asset.get('manifestHash'):
+            coll_manifest = load_json(asset['manifest'])
+            expected_hash = coll_manifest[token_id]['contentHash']
+            if expected_hash.lower() != content_hash.lower():
+                raise Exception("Content hash does not match manifest")
+
+    # If all checks passed, sign the PSBT:
+    # Find the index of the input we need to sign (e.g. validator's P2WSH or Taproot input)
+    sign_input_index = find_validator_input_index(psbt, asset)
+    sig = None
+    if asset['addressFormat'] == 'P2WSH':
+        # ECDSA signature (for simplicity using Schnorr anyway here)
+        sighash = psbt.inputs[sign_input_index].sighash()  # compute sighash of tx
+        sig = schnorr.sign(sighash, validator_priv)  # actually Schnorr sign, but could be ECDSA
+        psbt.inputs[sign_input_index].finalize(script_sig=b'', witness=[sig + b'\x01', get_pubkey_from_priv(validator_priv)])
+    else:  # Taproot key path
+        sighash = psbt.inputs[sign_input_index].sighash(taproot=True)
+        sig = schnorr.sign(sighash, validator_priv, aux_rand=None)  # schnorr sign with priv (assuming priv already tweaked if needed)
+        psbt.inputs[sign_input_index].finalize(script_sig=b'', witness=[sig])
+
+    return psbt.serialize()
+
+
+This stub demonstrates the flow: parse PSBT, enforce rules, then sign. (Note: In reality, the signing for Taproot would need to apply the tweak to the private key. Here we assume validator_priv is already the tweaked key or we’d derive it by taproot_tweak_seckey with the asset’s Merkle root
+en.bitcoin.it
+en.bitcoin.it
+.)
+
+Minimal Registry Format (JSON)
+
+We provided an example earlier. To reiterate in a more organized way, here’s how the registry could look in JSON, including asset rules and validator keys:
+
+{
+  "TestToken": {
+    "assetID": "asset1abcdef1234567890",
+    "type": "fungible",
+    "name": "TestToken",
+    "maxSupply": 1000000,
+    "maxPerMint": 100000,
+    "issued": 250000,
+    "validatorPubKey": "0279BE667... (X-only if Schnorr)",
+    "addressFormat": "Taproot",
+    "allowlistRoot": null,
+    "manifest": "https://example.com/testtoken.json"
+  },
+  "ArtCollection": {
+    "assetID": "collection1xyz9876543210",
+    "type": "NFTCollection",
+    "name": "ArtCollection",
+    "maxSupply": 10,
+    "issuedTokens": [0,1,2,5],
+    "validatorPubKey": "0279BE667... (same validator key)",
+    "addressFormat": "P2WSH",
+    "allowlistRoot": "6f5c...3b2a", 
+    "manifest": "ipfs://Qm.../ArtCollection.json",
+    "manifestHash": "d45f8c...ef90"
+  }
+}
+
+
+This registry maps human-readable asset identifiers (or just uses assetIDs as keys) to their info. We list which address format the asset uses (so the validator knows whether to expect a P2WSH or Taproot in transactions). We also include any needed hashes (like allowlist and manifest integrity hash).
+
+Sample JSON Manifests
+
+Finally, we include sample JSON metadata manifests for a fungible asset and an NFT collection:
+
+Asset Manifest (TestToken.json): This might contain descriptive info for the fungible token, similar to an ERC-20 token metadata.
+
+{
+  "assetID": "asset1abcdef1234567890",
+  "name": "TestToken",
+  "symbol": "TST",
+  "issuer": "Retest Labs",
+  "description": "A sample fungible token on the Bitcoin Retest network.",
+  "decimalPlaces": 0,
+  "website": "https://retest.example.com/testtoken",
+  "iconURI": "https://retest.example.com/testtoken/icon.png"
+}
+
+
+This file is not strictly needed for the on-chain logic, but it can be referenced by wallets to display human-friendly info (name, symbol, etc.). The assetID here matches what’s in the registry.
+
+NFT Collection Manifest (ArtCollection.json): This outlines the NFT collection:
+
+{
+  "collectionName": "ArtCollection",
+  "creator": "Alice",
+  "baseURI": "ipfs://QmCollectionHash/", 
+  "items": [
+    {
+      "tokenID": 0,
+      "name": "Art #0",
+      "contentHash": "Qm...hash0", 
+      "contentURI": "ipfs://Qm...image0.png",
+      "metadataURI": "ipfs://Qm...meta0.json"
+    },
+    {
+      "tokenID": 1,
+      "name": "Art #1",
+      "contentHash": "Qm...hash1",
+      "contentURI": "ipfs://Qm...image1.png",
+      "metadataURI": "ipfs://Qm...meta1.json"
+    },
+    ...
+    {
+      "tokenID": 9,
+      "name": "Art #9",
+      "contentHash": "Qm...hash9",
+      "contentURI": "taproot://<txid>:<vout>",
+      "metadataURI": "ipfs://Qm...meta9.json"
+    }
+  ]
+}
+
+
+In this example, the collection has 10 items (0 through 9). Each entry has:
+
+tokenID: unique within collection.
+
+name: a display name.
+
+contentHash: could be an IPFS CID or a SHA256 of the content file. Here shown as an IPFS CID for simplicity.
+
+contentURI: where to get the actual content. Some are on IPFS, but token #9 shows a taproot://txid:vout indicating the content was inscribed in a taproot output on-chain (the txid and output index where the data can be retrieved via an Ordinals parser, for example).
+
+metadataURI: sometimes each NFT has its own JSON (e.g., meta0.json) with properties, traits, etc. This is optional – we might just incorporate that info here or not use separate files.
+
+The baseURI in this manifest could indicate a common prefix for content (not used in this example except to show it can exist).
+
+The contentHash in each item is crucial – it’s what we commit to on-chain during mint (via OP_RETURN). For instance, if tokenID:3 was being minted, the validator would ensure the hash matches items[3].contentHash in this manifest. The manifest itself has a hash (shown in registry as manifestHash) which ideally is committed somewhere (for example, the very first mint of the collection might include an OP_RETURN with the manifest’s hash, or the registry stores it, ensuring the manifest isn’t swapped out).
+
+All these pieces (PSBT templates, scripts/keys, validator code, registry, manifests) together define the MVP. The transactions created following this design should be valid on the Retest network (which behaves like Bitcoin testnet/regtest) and enforce the intended rules via the combination of on-chain locks and off-chain checks. In practice, one can construct the PSBTs as above, run the validator signing stub, and broadcast the final transactions to test the end-to-end flow of minting both fungible assets and NFTs on Bitcoin. The outputs can then be recognized by wallet clients that are aware of the asset protocol (by parsing the OP_RETURNs and registry) to show the user their tokens or collectibles.
+
+Sources: This design draws on concepts from existing Bitcoin asset protocols. For example, using OP_RETURN as a marker output for colored coins is inspired by the Open Assets protocol
+en.bitcoin.it
+, which tags outputs with asset quantities and external metadata links
+en.bitcoin.it
+. The Taproot-based approach for committing asset data is influenced by Taproot Assets (Taro), where assets are anchored by hashed meta-data in Taproot outputs
+river.com
+river.com
+. Taproot’s flexibility and privacy benefits are leveraged to hide asset scripts until needed
+river.com
+. The general idea of NFTs as unique tokens with content hashes is analogous to other blockchain NFTs where each token is verifiably unique
+investopedia.com
+. By combining these, the MVP achieves Bitcoin-native tokens with minimal extensions, suitable for testing on regtest or testnet.

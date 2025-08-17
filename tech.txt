@@ -1,0 +1,256 @@
+# Bitcoin Native Asset Protocol with Covenant Enforcement
+## Technical Design Documentation
+
+## 1. Protocol Overview
+
+### 1.1 Core Architecture
+
+The Bitcoin Native Asset Protocol enables native asset issuance and management on Bitcoin through covenant enforcement mechanisms. The protocol operates by binding asset states to Bitcoin UTXOs using Taproot key tweaks and enforcing transfer rules through covenant signatures.
+
+The fundamental design principle involves embedding asset metadata directly into Bitcoin transactions through cryptographic commitments, while maintaining full backward compatibility with the existing Bitcoin network. This approach ensures that asset operations appear as standard Bitcoin transactions to nodes that don't understand the protocol.
+
+### 1.2 System Components
+
+The protocol consists of three primary layers working in coordination. The commitment layer binds assets to Bitcoin UTXOs through Taproot tweaks and optional OP_RETURN records. The validation layer implements covenant enforcement through MuSig2 aggregated signatures and deterministic policy verification. The coordination layer manages validator sets, fee distribution, and epoch-based key rotation.
+
+## 2. Data Model Specification
+
+### 2.1 Asset Fields Structure
+
+Each asset in the protocol maintains a specific data structure that ensures uniqueness, verifiability, and efficient processing:
+
+```
+Asset Data Structure:
+├── asset_id: 32 bytes
+│   └── SHA-256(issuer_pubkey || nonce)
+├── amount: 8 bytes (little-endian)
+│   └── Represents asset quantity with satoshi precision
+├── op_code: 1 byte
+│   ├── 0x03: Issuance
+│   ├── 0x01: Transfer
+│   ├── 0x02: Burn
+│   └── 0x0F: Fee output
+└── outputs_hash: 32 bytes (optional)
+    └── SHA-256(canonical_output_serialization)
+```
+
+The asset_id serves as a globally unique identifier computed deterministically from the issuer's public key and a nonce. This ensures that each asset can be uniquely identified across the entire network while preventing collision attacks. The amount field uses an 8-byte representation to maintain consistency with Bitcoin's satoshi values, enabling precise fractional asset amounts down to 10^-8 units.
+
+### 2.2 UTXO Binding Mechanism
+
+Assets are cryptographically bound to Bitcoin UTXOs through a commitment scheme that leverages Taproot's key path spending. The binding formula creates a modified public key that commits to the asset state:
+
+```
+K_output = MuSig2(Owner_pubkey, Covenant_pubkey) + H(asset_commitment) * G
+
+Where:
+- asset_commitment = asset_id || amount || op_code || outputs_hash
+- H() = SHA-256 hash function
+- G = secp256k1 generator point
+```
+
+This binding ensures that spending the UTXO requires both the owner's signature and the covenant's signature, preventing unauthorized asset transfers while maintaining the appearance of a standard Taproot output.
+
+## 3. Strict Mode Implementation
+
+### 3.1 Taproot Integration
+
+In Strict Mode, the protocol operates exclusively through Taproot outputs, maximizing privacy and efficiency. The implementation creates a Taproot output where the internal key represents the aggregated MuSig2 key of the owner and covenant, while the tweak commits to the asset state.
+
+The scriptPubKey for an asset UTXO follows the standard Taproot format:
+```
+OP_1 <32-byte x-only pubkey>
+```
+
+The 32-byte key encodes both ownership and asset information through the tweaking mechanism. This approach ensures that blockchain observers cannot distinguish asset transactions from regular Taproot spends without additional information.
+
+### 3.2 Transaction Construction
+
+When constructing a transaction in Strict Mode, the sender must coordinate with the covenant service to produce valid signatures. The process involves multiple steps to ensure both security and atomicity:
+
+First, the sender builds a Partially Signed Bitcoin Transaction (PSBT) that includes all necessary inputs and outputs. The PSBT contains proprietary fields that describe the asset operations, including the asset_id, amounts for each input and output, and any special operation codes. The sender then transmits this PSBT to the covenant service for validation.
+
+The covenant service performs comprehensive validation by verifying that the sum of asset inputs equals the sum of asset outputs plus any explicit burns. It checks that each output script correctly encodes the recipient's ownership and the transferred asset amount. The service ensures that fee outputs in the genesis asset are present according to the published fee schedule. Only after all validations pass does the covenant provide its partial MuSig2 signature.
+
+### 3.3 MuSig2 Signature Aggregation
+
+The protocol implements the two-round MuSig2 protocol for signature aggregation. In the first round, both the owner and covenant exchange nonces (R values) to establish randomness for the signature. The second round produces partial signatures that, when combined, create a valid Schnorr signature indistinguishable from a single-party signature.
+
+The implementation must handle nonce storage carefully to prevent reuse attacks. Each signing session generates fresh nonces that are bound to the specific transaction being signed. The covenant service maintains a nonce database to ensure that no nonce is ever reused across different transactions.
+
+## 4. Compatibility Mode Implementation
+
+### 4.1 Asset Action Record Format
+
+Compatibility Mode uses OP_RETURN outputs to store Asset Action Records (AAR) that make asset operations visible on the blockchain. The AAR follows a strict TLV (Type-Length-Value) encoding to maximize data efficiency within the 80-byte limit:
+
+```
+AAR Structure (80 bytes maximum):
+├── MAGIC: 4 bytes (0x46564341 - "AFVC")
+├── VERSION: 1 byte (0x01)
+├── TLV Fields:
+│   ├── Type 0x01: asset_id (32 bytes)
+│   ├── Type 0x02: inputs_sum (8 bytes, varint)
+│   ├── Type 0x03: outputs_sum (8 bytes, varint)
+│   ├── Type 0x04: burn_sum (8 bytes, varint)
+│   ├── Type 0x05: outputs_hash (32 bytes)
+│   ├── Type 0x10: output_index (4 bytes, varint)
+│   ├── Type 0x11: amount (8 bytes, varint)
+│   ├── Type 0x12: owner_commit (32 bytes)
+│   └── Type 0x20: covenant_signature (64 bytes)
+```
+
+Due to the 80-byte constraint, the AAR uses compression techniques including varint encoding for numeric values and optional field truncation with off-chain lookups for complete data.
+
+### 4.2 Backward Compatibility
+
+Compatibility Mode enables integration with existing Bitcoin infrastructure by using standard P2WSH or P2SH-P2WSH outputs for asset holdings. The asset script implements a 2-of-2 multisignature requirement between the owner and covenant keys:
+
+```
+Asset Script (P2WSH):
+OP_2 <owner_pubkey> <covenant_pubkey> OP_2 OP_CHECKMULTISIG
+```
+
+This approach allows legacy wallets to at least recognize the outputs as multisignature addresses, even if they cannot interpret the asset semantics. The AAR in the OP_RETURN provides the necessary context for asset-aware wallets to properly handle the funds.
+
+### 4.3 Validation Process
+
+Wallets validating Compatibility Mode transactions must parse the AAR from the OP_RETURN output and verify the covenant's Schnorr signature over the transaction data and AAR. They must confirm that the claimed asset outputs exist at the specified indices and carry the expected scripts. The validation includes checking that input sums equal output sums plus burns, ensuring conservation of asset supply.
+
+## 5. Wallet and Covenant Workflow
+
+### 5.1 Transaction Lifecycle
+
+The complete lifecycle of an asset transaction involves careful coordination between the wallet and covenant service. The process begins when a user initiates a transfer through their wallet interface. The wallet performs coin selection to choose appropriate asset-bearing UTXOs and constructs a transaction with the desired outputs.
+
+The wallet creates a PSBT that includes both standard Bitcoin fields and proprietary asset fields. These proprietary fields use specific key prefixes to identify asset-related data without conflicting with standard PSBT fields. The wallet then establishes a secure connection to the covenant service, typically using TLS with certificate pinning to prevent man-in-the-middle attacks.
+
+### 5.2 Covenant Validation Logic
+
+The covenant service implements deterministic validation logic that ensures consistent policy enforcement across all validators. The validation process examines each input to verify it contains valid asset commitments and proper authorization. For each output, the service computes the expected commitment based on the asset transfer rules and verifies it matches the actual output script.
+
+The covenant maintains a state database tracking all active assets and their current distribution. This enables detection of double-spend attempts and ensures that asset operations respect any time-locks or other constraints. The service also validates that the transaction includes appropriate fee payments in the genesis asset, preventing spam and compensating validators.
+
+### 5.3 Recipient Verification
+
+Recipients must perform their own validation before accepting asset transfers. In Strict Mode, recipients receive an off-chain proof package containing the asset fields and Taproot tweak information. They verify this proof against the on-chain transaction to confirm they have received the claimed assets.
+
+In Compatibility Mode, recipients parse the AAR and verify the covenant signature directly. They reconstruct the expected output scripts based on their own keys and the asset information, confirming that the transaction properly transfers ownership. This self-validation model ensures that recipients don't need to trust the sender's claims about what assets were transferred.
+
+## 6. Atomic Operations
+
+### 6.1 Hash Time-Locked Contracts
+
+The protocol supports atomic swaps between different assets or between assets and Bitcoin using HTLCs. The HTLC implementation for assets extends the standard Bitcoin HTLC pattern with asset-specific validation:
+
+```
+Asset HTLC Script:
+OP_IF
+    # Claim path: reveal preimage
+    OP_SHA256 <hash> OP_EQUALVERIFY
+    <recipient_asset_key>
+OP_ELSE
+    # Refund path: timeout
+    <timeout> OP_CHECKLOCKTIMEVERIFY OP_DROP
+    <sender_asset_key>
+OP_ENDIF
+OP_CHECKSIG
+```
+
+The asset keys in this script are the tweaked Taproot keys that commit to the asset state. This ensures that the HTLC can only be claimed or refunded with proper covenant approval, maintaining asset integrity throughout the swap process.
+
+### 6.2 Point Time-Locked Contracts
+
+For enhanced privacy, the protocol supports Point Time-Locked Contracts (PTLCs) using adaptor signatures. PTLCs replace the hash preimage with an elliptic curve point, preventing correlation between different legs of a swap:
+
+The implementation uses Schnorr adaptor signatures where the signature is encrypted with a point T = t·G. The complete signature can only be recovered by someone who knows the discrete logarithm t. This approach provides the same atomicity guarantees as HTLCs while improving privacy and reducing on-chain footprint.
+
+### 6.3 Cross-Asset Swaps
+
+Cross-asset atomic swaps within the protocol use a coordinated covenant signing process. Both parties create HTLCs for their respective assets with matching hash values and inverse timeout conditions. The covenant service validates both legs of the swap simultaneously, ensuring that either both transfers complete or neither does.
+
+The protocol implements a swap coordinator service that facilitates price discovery and matches swap requests. This coordinator operates without taking custody of assets, merely facilitating the connection between parties and helping construct the atomic swap transactions.
+
+## 7. Decentralized Validator Network
+
+### 7.1 Validator Set Management
+
+The protocol maintains a decentralized network of validators who collectively act as the covenant authority. Validators are selected through a deterministic process based on their stake in the genesis asset and their historical performance metrics.
+
+The validator selection algorithm computes a committee for each transaction by hashing the transaction template with the current epoch number. This deterministic selection ensures that all participants can independently verify which validators should sign a given transaction. The committee size is configurable but typically ranges from 5 to 15 validators to balance security with efficiency.
+
+### 7.2 Epoch-Based Key Rotation
+
+To prevent long-term key compromise from affecting the entire system, the protocol implements epoch-based key rotation. Each epoch lasts approximately one week (1,008 blocks) and uses a distinct covenant key derived from the master covenant key:
+
+```
+C_epoch(asset_id) = C_master + H_tag("asset||epoch", asset_id || epoch_number) * G
+```
+
+This derivation scheme allows recipients to compute future epoch keys deterministically while preventing attackers from deriving past keys even if they compromise the current epoch key. Assets automatically migrate to new epoch keys when spent, ensuring gradual system-wide key rotation.
+
+### 7.3 Fee Distribution Mechanism
+
+The protocol implements an autonomous fee distribution system that compensates validators for their services. Every asset transaction must include fee outputs in the genesis asset paid to the selected validator committee. The fee amount follows a deterministic schedule based on transaction complexity and current network conditions.
+
+Fee distribution occurs through special fee collection transactions that aggregate multiple fee outputs and distribute them according to the protocol rules. Validators earn 60% of fees from transactions they sign, with the remainder allocated to protocol development, insurance funds, and passive stakers. This economic model ensures sustainable validator operation while funding ongoing protocol development.
+
+## 8. Development Implementation Plan
+
+### 8.1 Core Components Development
+
+The implementation begins with developing the core libraries that handle asset commitment generation, Taproot key tweaking, and MuSig2 signature aggregation. These libraries form the foundation for all other components and must be thoroughly tested and audited before proceeding.
+
+The covenant service implementation follows, starting with a single-validator version for testing before expanding to the full multi-validator architecture. The service must handle high-throughput validation while maintaining strict consistency guarantees. Implementation uses Rust for performance and memory safety, with careful attention to preventing timing attacks and other side-channels.
+
+### 8.2 Wallet Integration Specifications
+
+Wallet integration requires extending existing Bitcoin wallet architectures with asset-aware UTXO management. The wallet must track not just Bitcoin values but also asset types and amounts for each UTXO. This requires modifications to the wallet database schema and transaction construction logic.
+
+The implementation provides a wallet SDK that handles the complexity of asset operations while presenting a simple interface to wallet developers. The SDK includes functions for asset balance queries, transfer construction, atomic swap coordination, and proof validation. Reference implementations demonstrate integration with popular wallet frameworks.
+
+### 8.3 Testing Infrastructure
+
+The testing strategy employs multiple layers of validation to ensure protocol correctness and security. Unit tests verify individual components like commitment generation and signature aggregation. Integration tests validate the interaction between wallets and covenant services. End-to-end tests simulate complete asset lifecycles from issuance through multiple transfers to eventual burning.
+
+The protocol includes a comprehensive test suite that validates both positive and negative test cases. This includes testing error conditions like insufficient balances, invalid signatures, and malformed transactions. Fuzzing tests help identify edge cases and potential security vulnerabilities. Performance benchmarks ensure the system can handle production workloads.
+
+## 9. Security Considerations
+
+### 9.1 Threat Model
+
+The protocol's security model assumes that Bitcoin's consensus remains secure and that the majority of validators behave honestly. The system must resist attacks from malicious users attempting to inflate asset supplies, malicious validators attempting to steal assets, and network adversaries attempting to disrupt operations.
+
+The covenant signature requirement prevents unauthorized asset transfers even if an attacker obtains the owner's private key. Similarly, the owner's signature requirement prevents malicious validators from unilaterally stealing assets. This mutual authentication model ensures that both parties must cooperate for any asset transfer to occur.
+
+### 9.2 Cryptographic Security
+
+All cryptographic operations use well-established primitives with conservative security parameters. The protocol uses SHA-256 for hashing, secp256k1 for elliptic curve operations, and Schnorr signatures for authentication. The MuSig2 implementation follows the specification exactly to prevent known attacks like key cancellation.
+
+The protocol implements defense-in-depth with multiple security layers. Even if one mechanism fails, others prevent asset loss. For example, if a validator's key is compromised, the epoch rotation limits the damage window. If the MuSig2 implementation has a bug, the Bitcoin script validation provides a fallback security layer.
+
+### 9.3 Operational Security
+
+Validators must implement strict operational security practices including hardware security modules for key storage, multi-party computation for sensitive operations, and comprehensive audit logging for all actions. The protocol includes monitoring tools that detect anomalous behavior and can trigger emergency responses.
+
+The system implements automatic circuit breakers that halt operations if suspicious patterns are detected. This includes rate limiting to prevent spam attacks, threshold monitoring to detect supply inflation attempts, and coordination checks to identify validator collusion. These safeguards operate autonomously to prevent damage even if human operators are unavailable.
+
+## 10. Future Enhancement Paths
+
+### 10.1 Covenant Opcodes Integration
+
+When Bitcoin implements new covenant opcodes like OP_CHECKTEMPLATEVERIFY or OP_TXHASH, the protocol can migrate from signature-based covenants to script-based covenants. This migration path is built into the protocol design through versioning and upgrade mechanisms.
+
+The transition would occur gradually, with new assets using script-based covenants while existing assets continue using signature-based covenants. The protocol includes bridge transactions that can atomically convert assets between covenant types, ensuring smooth migration without disrupting existing holdings.
+
+### 10.2 Lightning Network Integration
+
+The protocol's design anticipates full Lightning Network integration for instant, low-cost asset transfers. Assets can be transferred through Lightning channels using the same commitment transaction structure as regular Lightning payments, with additional validation for asset conservation.
+
+The implementation extends Lightning's HTLC mechanisms to support asset transfers, ensuring that routing nodes can forward asset payments without taking custody. This enables a unified Lightning Network that supports both Bitcoin and asset transfers through the same channel infrastructure.
+
+### 10.3 Advanced Features Roadmap
+
+Future protocol versions will support advanced features including programmable asset policies with complex transfer rules, hierarchical asset structures with parent-child relationships, privacy-enhanced transfers using zero-knowledge proofs, and cross-chain bridges to other blockchain networks.
+
+Each enhancement maintains backward compatibility through the protocol's versioning system. Older wallets can continue operating with basic functionality while newer implementations access advanced features. This evolutionary approach ensures the protocol can adapt to changing requirements without fragmenting the ecosystem.
