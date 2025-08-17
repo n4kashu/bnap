@@ -200,7 +200,7 @@
               "3.1"
             ],
             "details": "Extend BasePSBTBuilder with FungibleMintPSBTBuilder class that constructs PSBTs with validator input requirements, colored output creation with asset amounts, change output handling, and proprietary fields for asset ID and mint parameters. Include supply cap validation and per-mint limit enforcement in the PSBT structure.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-17T22:47:20.917Z",
+      "updated": "2025-08-17T23:19:19.654Z",
       "description": "Tasks for master context"
     }
   }
