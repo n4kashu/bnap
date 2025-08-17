@@ -8,6 +8,7 @@ token mints, NFT mints, and asset transfers.
 
 from .builder import BasePSBTBuilder, FungibleMintBuilder, NFTMintBuilder, TransferBuilder
 from .fungible_mint import FungibleMintPSBTBuilder, FungibleMintParameters
+from .nft_mint import NFTMintPSBTBuilder, NFTMintParameters, NFTMetadata, MetadataScheme
 from .utils import *
 from .exceptions import *
 
@@ -17,6 +18,10 @@ __all__ = [
     'FungibleMintPSBTBuilder',
     'FungibleMintParameters',
     'NFTMintBuilder',
+    'NFTMintPSBTBuilder',
+    'NFTMintParameters',
+    'NFTMetadata',
+    'MetadataScheme',
     'TransferBuilder'
 ]
 

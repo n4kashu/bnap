@@ -211,7 +211,7 @@
               "3.1"
             ],
             "details": "Create NFTMintPSBTBuilder class that handles single NFT issuance, content hash commitment in proprietary fields, collection ID and token ID encoding, metadata URI or on-chain content references, and proper output script construction for NFT ownership. Support both IPFS and HTTP URI schemes.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-17T23:19:19.654Z",
+      "updated": "2025-08-17T23:26:10.936Z",
       "description": "Tasks for master context"
     }
   }

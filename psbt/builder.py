@@ -537,7 +537,16 @@ class FungibleMintBuilder(BasePSBTBuilder):
 
 class NFTMintBuilder(BasePSBTBuilder):
     """Builder for NFT mint transactions."""
-    pass
+    
+    def __init__(self, version: int = 2, locktime: int = 0):
+        """Initialize NFT mint builder (legacy compatibility)."""
+        super().__init__(version, locktime)
+        
+    def create_mint_psbt(self, collection_id: str, token_id: int, **kwargs):
+        """Create mint PSBT (legacy method - use NFTMintPSBTBuilder instead)."""
+        from .nft_mint import NFTMintPSBTBuilder
+        builder = NFTMintPSBTBuilder(self.version, self.locktime)
+        return builder
 
 
 class TransferBuilder(BasePSBTBuilder):
