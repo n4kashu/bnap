@@ -1,0 +1,31 @@
+{
+  "name": "bnap",
+  "version": "1.0.0",
+  "description": "Bitcoin Native Asset Protocol - Client Libraries",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "node --watch index.js",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "bitcoin",
+    "assets",
+    "nft",
+    "protocol",
+    "blockchain"
+  ],
+  "author": "BNAP Team",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bip39": "^3.1.0",
+    "bitcoinjs-lib": "^6.1.7",
+    "tiny-secp256k1": "^2.2.4"
+  }
+}
