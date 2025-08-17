@@ -222,7 +222,7 @@
               "3.1"
             ],
             "details": "Create psbt/outputs/p2wsh.py with functions to generate witness scripts with validator public key, create P2WSH output scripts from witness script hashes, add witness script to PSBT output fields, and handle witness data in proprietary PSBT fields. Ensure scripts follow <ValidatorPubKey> OP_CHECKSIG format.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-17T23:26:10.936Z",
+      "updated": "2025-08-17T23:34:46.748Z",
       "description": "Tasks for master context"
     }
   }

@@ -9,6 +9,7 @@ token mints, NFT mints, and asset transfers.
 from .builder import BasePSBTBuilder, FungibleMintBuilder, NFTMintBuilder, TransferBuilder
 from .fungible_mint import FungibleMintPSBTBuilder, FungibleMintParameters
 from .nft_mint import NFTMintPSBTBuilder, NFTMintParameters, NFTMetadata, MetadataScheme
+from .outputs import *
 from .utils import *
 from .exceptions import *
 
@@ -22,7 +23,15 @@ __all__ = [
     'NFTMintParameters',
     'NFTMetadata',
     'MetadataScheme',
-    'TransferBuilder'
+    'TransferBuilder',
+    # P2WSH Output Construction
+    'P2WSHBuilder',
+    'WitnessScriptBuilder',
+    'CovenantScriptBuilder',
+    'create_p2wsh_output',
+    'create_validator_script',
+    'create_asset_commitment_script',
+    'create_multisig_script'
 ]
 
 __version__ = '1.0.0'
