@@ -650,7 +650,7 @@
         "dependencies": [
           1
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -658,7 +658,7 @@
             "description": "Create the fundamental Merkle tree data structure with efficient node management and tree construction algorithms",
             "dependencies": [],
             "details": "Implement crypto/merkle.py with MerkleTree class containing node structure (hash, left, right children), tree construction from sorted address lists, proper leaf node formatting with 0x00 prefix for domain separation, efficient binary tree building for large datasets (10k+ addresses), tree height calculation and validation, and internal node hash computation using SHA-256(left_hash || right_hash)",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -669,7 +669,7 @@
               "7.1"
             ],
             "details": "Extend crypto/merkle.py with proof generation methods including path computation from leaf to root, sibling hash collection at each tree level, proof object structure (leaf_index, leaf_hash, sibling_hashes), optimization for proof size and generation speed, support for non-existent address proofs (exclusion proofs), and proof serialization to JSON/bytes format",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -680,7 +680,7 @@
               "7.2"
             ],
             "details": "Add verification methods to crypto/merkle.py including proof validation algorithm that reconstructs root from leaf and siblings, constant-time comparison to prevent timing attacks, verification of proof structure and hash lengths, support for both inclusion and exclusion proof verification, error handling for malformed proofs, and integration with validator's allowlist checking logic",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -691,7 +691,7 @@
               "7.1"
             ],
             "details": "Implement crypto/allowlist.py with AllowlistManager class containing address list storage and sorting, Merkle tree generation and root hash computation, address addition/removal with tree updates, bulk import from CSV/JSON formats, address validation and normalization, integration methods for validator to check allowlist membership, and persistent storage of allowlists with versioning",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -704,7 +704,7 @@
               "7.4"
             ],
             "details": "Add caching layer to crypto/allowlist.py with LRU cache for recently generated proofs, pre-computation of common proof paths, memory-efficient storage of partial trees, lazy evaluation for rarely accessed branches, cache invalidation on allowlist updates, performance monitoring and cache hit ratio tracking, and configurable cache size limits based on available memory",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -719,7 +719,7 @@
               "7.5"
             ],
             "details": "Create security measures including second-preimage attack prevention through proper leaf/internal node distinction, protection against CVE-2012-2459 duplicate txid vulnerability, input validation for all public methods, comprehensive unit tests for edge cases and attack vectors. Add performance benchmarks for tree construction with 1k/10k/100k addresses, proof generation/verification timing, memory usage profiling, and comparison with reference implementations",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T18:03:50.766Z",
+      "updated": "2025-08-18T18:21:28.376Z",
       "description": "Tasks for master context"
     }
   }
