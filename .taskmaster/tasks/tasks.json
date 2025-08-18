@@ -832,7 +832,7 @@
           2,
           5
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -840,7 +840,7 @@
             "description": "Create comprehensive JSON schema definitions for NFT metadata validation including required and optional fields",
             "dependencies": [],
             "details": "Implement nft/metadata.py with JSON schema definitions supporting standard NFT fields (name, description, image/content URI, attributes array). Include schema versioning support, custom property definitions, and collection-specific metadata extensions. Use jsonschema library for validation. Support both ERC-721 and custom metadata standards.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -851,7 +851,7 @@
               "9.1"
             ],
             "details": "Add content hashing functions in nft/content.py to generate SHA-256 hashes of NFT content (images, videos, documents). Implement hash binding to metadata, verification against actual content, and multi-hash support for different content layers. Include merkle tree generation for multi-file NFTs.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -862,7 +862,7 @@
               "9.1"
             ],
             "details": "Implement nft/collections.py with collection manifest data structures including collection metadata, token ID allocation and tracking, max supply per collection, minting rules and constraints. Support sequential and random token ID assignment strategies. Include collection-level metadata inheritance.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T19:03:45.216Z",
+      "updated": "2025-08-18T19:14:29.138Z",
       "description": "Tasks for master context"
     }
   }

@@ -1,0 +1,51 @@
+{
+  "collection_id": "sample_collection_001",
+  "metadata": {
+    "name": "Sample NFT Collection",
+    "description": "A sample collection for testing BNAP NFT functionality",
+    "image": "ipfs://QmSampleCollectionImage",
+    "collection_size": 1000,
+    "created_at": "2025-08-18T19:14:13.619683+00:00",
+    "creator": "Sample Creator"
+  },
+  "max_supply": 1000,
+  "token_id_strategy": "sequential",
+  "minting_rules": [
+    {
+      "phase": "allowlist",
+      "max_per_wallet": 2,
+      "max_per_transaction": 1,
+      "start_time": "2025-08-18T19:14:13.619703+00:00",
+      "end_time": "2025-08-25T19:14:13.619704+00:00",
+      "allowlist_addresses": [
+        "0x123...",
+        "0x456..."
+      ]
+    },
+    {
+      "phase": "public",
+      "max_per_wallet": 5,
+      "max_per_transaction": 3,
+      "start_time": "2025-08-25T19:14:13.619714+00:00"
+    }
+  ],
+  "status": "active",
+  "tokens_minted": 0,
+  "next_token_id": 1,
+  "available_token_ids": [],
+  "reserved_token_ids": [],
+  "inherited_attributes": [],
+  "created_at": "2025-08-18T19:14:13.619721+00:00",
+  "updated_at": "2025-08-18T19:14:13.619724+00:00",
+  "base_metadata_template": {
+    "name": "Sample NFT #{token_id}",
+    "description": "Token #{token_id} from Sample NFT Collection",
+    "image": "ipfs://QmSampleImage{token_id}",
+    "content_type": "image",
+    "schema_version": "2.0",
+    "created_at": "2025-08-18T19:14:13.619688+00:00"
+  },
+  "creator_address": "0xCreator123",
+  "royalty_percentage": 5.0,
+  "royalty_address": "0xRoyalty456"
+}
