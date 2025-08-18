@@ -1062,7 +1062,7 @@
               "11.1"
             ],
             "details": "Write comprehensive architecture overview in docs/technical/architecture.md with system component diagrams using Mermaid. Document protocol specifications including PSBT structure, covenant implementations (P2WSH and Taproot), transaction formats, and validation rules. Create cryptographic primitives documentation covering Taproot key tweaking formulas, Merkle proof generation, signature schemes (ECDSA/Schnorr), and asset commitment calculations. Add sequence diagrams for mint workflows, transfer operations, and validator interactions. Document network protocol specifications and RPC interface details. Include test vectors and reference implementations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Validate all Mermaid diagrams render correctly, verify code examples compile and run, cross-reference with implementation files in crypto/, psbt/, and scripts/ directories, ensure formulas are mathematically correct"
           },
           {
@@ -1104,7 +1104,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T21:53:19.385Z",
+      "updated": "2025-08-18T22:04:45.908Z",
       "description": "Tasks for master context"
     }
   }
