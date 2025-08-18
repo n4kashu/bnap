@@ -832,7 +832,7 @@
           2,
           5
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -873,7 +873,7 @@
               "9.2"
             ],
             "details": "Add IPFS client integration in nft/content.py using ipfshttpclient or py-ipfs-api. Implement content upload with automatic pinning, CID generation and storage, gateway URL construction, and fallback gateway support. Include retry logic and connection pooling for reliability.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -884,7 +884,7 @@
               "9.4"
             ],
             "details": "Create URI resolver in nft/content.py supporting multiple URI schemes (ipfs://, https://, ar://). Implement HTTP gateway integration with caching, content type detection, and size limits. Add fallback mechanism between IPFS gateways and direct HTTP URLs. Include CDN support for production deployments.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -895,7 +895,7 @@
               "9.2"
             ],
             "details": "Create on-chain storage module in nft/content.py for embedding small content directly in Taproot scripts. Implement content chunking for larger data, script path construction with content commitments, and retrieval from blockchain. Support compression and encoding optimizations for efficiency.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -907,7 +907,7 @@
               "9.3"
             ],
             "details": "Add immutability checks in nft/metadata.py using content hash binding to transaction outputs. Implement metadata freezing upon mint confirmation, version tracking for pre-mint updates, and audit trail for metadata changes. Include cryptographic proofs of metadata state at mint time.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -924,7 +924,7 @@
               "9.7"
             ],
             "details": "Write tests in tests/test_nft/ covering metadata schema validation with valid/invalid data, content hash verification with tampered content detection, IPFS upload/retrieval simulation, collection manifest parsing and validation, NFT uniqueness enforcement, URI resolution across schemes, and on-chain content storage/retrieval. Include integration tests with validator components.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -942,7 +942,7 @@
           8,
           9
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -950,7 +950,7 @@
             "description": "Create the main CLI application structure with command routing and argument parsing framework",
             "dependencies": [],
             "details": "Set up cli/main.py using Python's click or argparse framework. Define the main command groups: 'asset' (for asset management), 'mint' (for minting operations), 'registry' (for queries), 'validator' (for validator operations), and 'config' (for configuration). Implement command routing, global options (--config-file, --output-format, --verbose), and error handling wrapper. Set up logging configuration based on verbosity levels.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -961,7 +961,7 @@
               "10.1"
             ],
             "details": "Create cli/commands/asset.py with subcommands: 'create-fungible' (name, symbol, max-supply, per-mint-limit), 'create-nft' (collection-name, max-supply, metadata-uri), 'list' (show all registered assets), 'info' (detailed asset information), and 'update-rules' (modify minting rules). Include input validation, confirmation prompts for destructive operations, and proper error messages. Support reading asset definitions from JSON files for batch operations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -972,7 +972,7 @@
               "10.1"
             ],
             "details": "Implement cli/commands/mint.py with 'mint-fungible' (asset-id, amount, recipient), 'mint-nft' (collection-id, token-id, metadata, recipient), and 'batch-mint' (from CSV/JSON file) commands. Generate PSBTs for minting operations, validate against asset rules (supply caps, allowlists), and output base64-encoded PSBTs. Include dry-run mode for testing without actual minting. Support both interactive prompts and non-interactive batch processing.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T19:14:29.138Z",
+      "updated": "2025-08-18T20:43:32.233Z",
       "description": "Tasks for master context"
     }
   }
