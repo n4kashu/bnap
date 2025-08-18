@@ -207,6 +207,94 @@ def double_sha256(data: bytes) -> bytes:
     return hashlib.sha256(hashlib.sha256(data).digest()).digest()
 
 
+def estimate_tx_size(num_inputs: int, num_outputs: int, witness: bool = True) -> int:
+    """
+    Estimate transaction size in bytes.
+    
+    Args:
+        num_inputs: Number of inputs
+        num_outputs: Number of outputs  
+        witness: Whether transaction uses witness data
+        
+    Returns:
+        Estimated transaction size in bytes
+    """
+    # Base transaction size
+    base_size = (
+        4 +  # version
+        1 +  # input count (assuming < 253)
+        num_inputs * 41 +  # inputs (36 + 5 for script)
+        1 +  # output count (assuming < 253) 
+        num_outputs * 34 +  # outputs (8 + 26 for script, assuming P2WPKH/P2WSH)
+        4    # locktime
+    )
+    
+    if witness:
+        # Add witness overhead
+        witness_size = (
+            1 +  # witness marker
+            1 +  # witness flag
+            num_inputs * 110  # witness data per input (signatures + pubkeys)
+        )
+        # For segwit, use weight units: (base_size * 3 + witness_size) / 4
+        return int((base_size * 3 + witness_size) / 4)
+    
+    return base_size
+
+
+def create_p2wpkh_script(pubkey_hash: bytes) -> bytes:
+    """
+    Create P2WPKH script from public key hash.
+    
+    Args:
+        pubkey_hash: 20-byte public key hash
+        
+    Returns:
+        P2WPKH script bytes
+    """
+    if len(pubkey_hash) != 20:
+        raise ValueError("Public key hash must be 20 bytes")
+    
+    return b'\x00\x14' + pubkey_hash
+
+
+def create_p2wsh_script(script_hash: bytes) -> bytes:
+    """
+    Create P2WSH script from script hash.
+    
+    Args:
+        script_hash: 32-byte script hash
+        
+    Returns:
+        P2WSH script bytes  
+    """
+    if len(script_hash) != 32:
+        raise ValueError("Script hash must be 32 bytes")
+    
+    return b'\x00\x20' + script_hash
+
+
+def decode_bip32_path(data: bytes) -> List[int]:
+    """
+    Decode BIP32 derivation path from bytes.
+    
+    Args:
+        data: Bytes containing derivation path
+        
+    Returns:
+        List of derivation indices
+    """
+    if len(data) % 4 != 0:
+        raise ValueError("Invalid BIP32 path length")
+    
+    path = []
+    for i in range(0, len(data), 4):
+        index = struct.unpack('<I', data[i:i+4])[0]
+        path.append(index)
+    
+    return path
+
+
 def serialize_outpoint(txid: str, vout: int) -> bytes:
     """
     Serialize transaction outpoint.

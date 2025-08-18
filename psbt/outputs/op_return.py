@@ -694,3 +694,128 @@ def validate_op_return_size(data: bytes) -> bool:
         True if valid size, False otherwise
     """
     return len(data) <= MAX_OP_RETURN_SIZE
+
+
+def parse_op_return_metadata(script_data: bytes) -> Optional[Dict[str, Any]]:
+    """
+    Parse BNAP metadata from OP_RETURN script data.
+    
+    Args:
+        script_data: Raw OP_RETURN script bytes
+        
+    Returns:
+        Dictionary with parsed metadata or None if not BNAP data
+    """
+    try:
+        decoder = OpReturnDecoder()
+        return decoder.decode(script_data)
+    except Exception:
+        return None
+
+
+def create_asset_transfer_op_return(
+    asset_id: str,
+    amount: int,
+    from_pubkey: Optional[bytes],
+    to_pubkey: Optional[bytes],
+    metadata_type: MetadataType = MetadataType.ASSET_TRANSFER
+) -> bytes:
+    """
+    Create OP_RETURN script for asset transfer.
+    
+    Args:
+        asset_id: Asset identifier
+        amount: Transfer amount
+        from_pubkey: Sender public key hash
+        to_pubkey: Recipient public key hash
+        metadata_type: Type of metadata
+        
+    Returns:
+        OP_RETURN script bytes
+    """
+    payload = MetadataPayload(
+        metadata_type=metadata_type,
+        content=_encode_transfer_data(asset_id, amount, from_pubkey, to_pubkey)
+    )
+    
+    encoder = OpReturnEncoder()
+    return encoder.create_op_return_output(payload)
+
+
+def create_nft_transfer_op_return(
+    collection_id: int,
+    token_id: int,
+    from_address: Optional[bytes],
+    to_address: Optional[bytes]
+) -> bytes:
+    """
+    Create OP_RETURN script for NFT transfer.
+    
+    Args:
+        collection_id: NFT collection ID
+        token_id: NFT token ID
+        from_address: Sender address
+        to_address: Recipient address
+        
+    Returns:
+        OP_RETURN script bytes
+    """
+    payload = MetadataPayload(
+        metadata_type=MetadataType.NFT_METADATA,
+        content=_encode_nft_transfer_data(collection_id, token_id, from_address, to_address)
+    )
+    
+    encoder = OpReturnEncoder()
+    return encoder.create_op_return_output(payload)
+
+
+def _encode_transfer_data(
+    asset_id: str, 
+    amount: int, 
+    from_pubkey: Optional[bytes], 
+    to_pubkey: Optional[bytes]
+) -> bytes:
+    """Encode asset transfer data (compact format)."""
+    # More compact encoding to fit in OP_RETURN
+    data = struct.pack('<Q', amount)  # Amount as 8-byte little-endian
+    
+    # Add asset ID hash (first 16 bytes only for compactness)
+    asset_hash = hashlib.sha256(asset_id.encode('utf-8')).digest()[:16]
+    data += asset_hash
+    
+    # Add public key hashes if provided (first 10 bytes only for compactness)
+    if from_pubkey:
+        data += from_pubkey[:10]
+    else:
+        data += b'\x00' * 10
+    
+    if to_pubkey:
+        data += to_pubkey[:10]
+    else:
+        data += b'\x00' * 10
+    
+    # Total: 8 + 16 + 10 + 10 = 44 bytes + overhead should fit in 80 bytes
+    return data
+
+
+def _encode_nft_transfer_data(
+    collection_id: int,
+    token_id: int,
+    from_address: Optional[bytes],
+    to_address: Optional[bytes]
+) -> bytes:
+    """Encode NFT transfer data."""
+    data = struct.pack('<QQ', collection_id, token_id)
+    
+    # Add addresses if provided
+    if from_address:
+        data += from_address[:20].ljust(20, b'\x00')
+    else:
+        data += b'\x00' * 20
+        
+    if to_address:
+        data += to_address[:20].ljust(20, b'\x00')
+    else:
+        data += b'\x00' * 20
+    
+    return data

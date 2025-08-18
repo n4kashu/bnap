@@ -59,3 +59,14 @@ class AssetMetadataError(PSBTError):
 class MetadataError(PSBTError):
     """Exception raised for metadata encoding/decoding errors."""
     pass
+
+
+class PSBTBuildError(PSBTError):
+    """Exception raised during PSBT building operations."""
+    pass
+
+
+class InsufficientFundsError(PSBTError):
+    """Exception raised when insufficient funds for transfer."""
+    def __init__(self, message: str = "Insufficient funds"):
+        super().__init__(message)

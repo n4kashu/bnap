@@ -181,7 +181,7 @@
         "dependencies": [
           1
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -233,7 +233,7 @@
               "3.1"
             ],
             "details": "Create psbt/outputs/taproot.py implementing Taproot key tweaking with asset commitments using formula P = P_internal + H(asset_commitment) * G, Taproot output script construction, internal key and tweak data in PSBT fields, and support for both key-path and script-path spending. Include BIP-341 compliance.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -244,7 +244,7 @@
               "3.1"
             ],
             "details": "Build psbt/metadata.py with TLV (Type-Length-Value) encoding functions for protocol version, asset ID, operation type, and additional metadata fields. Implement OP_RETURN script construction with 80-byte limit compliance, metadata compression where needed, and proper Bitcoin script formatting. Support all asset operation types.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -255,7 +255,7 @@
               "3.6"
             ],
             "details": "Develop psbt/parser.py with PSBTParser class that deserializes base64 PSBT data, extracts proprietary asset fields using protocol-specific prefixes, parses OP_RETURN metadata from outputs, validates PSBT structure against BIP-174, and reconstructs asset operation details. Include error handling for malformed PSBTs.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -268,7 +268,7 @@
               "3.3"
             ],
             "details": "Implement psbt/templates.py with transfer PSBT builders for fungible token transfers with amount validation, NFT ownership transfers with collection verification, multi-asset transfers in single transaction, and fee calculation with proper change handling. Include templates for common transfer patterns.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -284,7 +284,7 @@
               "3.8"
             ],
             "details": "Build psbt/validator.py with PSBT structure validation against Bitcoin Core requirements, proprietary field format verification, and output script correctness checks. Create tests/test_psbt.py with round-trip tests (build->serialize->parse), Bitcoin Core decodepsbt RPC validation, and edge case testing for all PSBT types.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -299,7 +299,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -307,7 +307,7 @@
             "description": "Initialize the cryptographic module with proper directory structure and install required dependencies",
             "dependencies": [],
             "details": "Create crypto/ directory with __init__.py. Set up requirements including secp256k1-py, coincurve, or python-bitcoinlib for elliptic curve operations. Configure proper imports and module structure for keys.py, commitments.py, signatures.py, and musig2.py. Ensure compatibility with Python 3.8+ and establish error handling patterns for cryptographic operations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-17T23:34:46.748Z",
+      "updated": "2025-08-18T11:13:53.629Z",
       "description": "Tasks for master context"
     }
   }
