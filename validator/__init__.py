@@ -18,6 +18,10 @@ from .core import (
     validate_psbt_quick
 )
 
+from .rules import (
+    SupplyLimitRule
+)
+
 __all__ = [
     "ValidationEngine",
     "ValidationContext", 
@@ -27,5 +31,6 @@ __all__ = [
     "RuleViolationError",
     "ConfigurationError",
     "create_default_validator",
-    "validate_psbt_quick"
+    "validate_psbt_quick",
+    "SupplyLimitRule"
 ]

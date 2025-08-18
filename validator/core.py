@@ -266,11 +266,15 @@ class ValidationEngine:
     
     def _register_default_rules(self):
         """Register default validation rules."""
-        # Note: Actual rule implementations will be added in subsequent subtasks
         self.logger.info("Registering default validation rules")
         
-        # Placeholder for rule registration - will be implemented in subtasks
-        # self.register_rule(SupplyLimitRule())
+        # Import here to avoid circular imports
+        from .rules.supply_limit import SupplyLimitRule
+        
+        # Register implemented rules
+        self.register_rule(SupplyLimitRule())
+        
+        # Placeholder for remaining rule registrations - will be implemented in subtasks
         # self.register_rule(PerMintLimitRule())
         # self.register_rule(AllowlistRule())
         # self.register_rule(ContentHashRule())
