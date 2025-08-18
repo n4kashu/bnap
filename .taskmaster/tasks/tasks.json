@@ -983,7 +983,7 @@
               "10.1"
             ],
             "details": "Create cli/commands/registry.py with 'query' (search assets by criteria), 'stats' (issuance statistics), 'history' (transaction history for an asset), 'export' (dump registry to JSON/CSV), and 'verify' (check registry integrity) commands. Implement flexible filtering options, pagination for large result sets, and multiple output formats (JSON, CSV, table, human-readable). Add summary reports for total assets, minted amounts, and remaining supply.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -994,7 +994,7 @@
               "10.1"
             ],
             "details": "Implement cli/commands/validator.py with 'init' (initialize validator with keys), 'start/stop' (control validator service), 'status' (check validator health), 'sign-psbt' (manually sign a PSBT), 'validate-psbt' (check PSBT validity), and 'rotate-keys' (key rotation) commands. Include health checks, performance metrics display, and transaction queue monitoring. Support both daemon mode and one-shot operations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T20:43:32.233Z",
+      "updated": "2025-08-18T20:57:58.225Z",
       "description": "Tasks for master context"
     }
   }

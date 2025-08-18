@@ -181,26 +181,8 @@ def cli(ctx: CLIContext, config_file: Optional[str], output_format: str,
 
 
 
-@cli.group()
-@pass_context
-def registry(ctx: CLIContext):
-    """
-    Registry query and reporting commands.
-    
-    Query asset registries, view statistics, and generate reports.
-    """
-    ctx.logger.debug("Registry command group invoked")
 
 
-@cli.group()
-@pass_context
-def validator(ctx: CLIContext):
-    """
-    Validator management and operation commands.
-    
-    Start validators, manage validator nodes, and monitor validation operations.
-    """
-    ctx.logger.debug("Validator command group invoked")
 
 
 @cli.group()
@@ -372,6 +354,18 @@ def register_commands():
         cli.add_command(mint)
     except ImportError as e:
         logging.getLogger('bnap-cli').warning(f"Failed to load mint commands: {e}")
+    
+    try:
+        from cli.commands.registry import registry
+        cli.add_command(registry)
+    except ImportError as e:
+        logging.getLogger('bnap-cli').warning(f"Failed to load registry commands: {e}")
+    
+    try:
+        from cli.commands.validator import validator
+        cli.add_command(validator)
+    except ImportError as e:
+        logging.getLogger('bnap-cli').warning(f"Failed to load validator commands: {e}")
 
 
 # Main entry point
