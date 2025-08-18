@@ -8,8 +8,10 @@ per-mint limits, allowlist verification, and content hash validation.
 
 from .supply_limit import SupplyLimitRule
 from .mint_limits import MintLimitRule
+from .allowlist import AllowlistRule
 
 __all__ = [
     "SupplyLimitRule",
-    "MintLimitRule"
+    "MintLimitRule",
+    "AllowlistRule"
 ]

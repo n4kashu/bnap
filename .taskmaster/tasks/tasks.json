@@ -462,7 +462,7 @@
               "5.1"
             ],
             "details": "Create validator/rules/mint_limits.py with MintLimitRule class. Parse PSBT outputs to calculate total mint amount per transaction. Validate against per_mint_limit from asset configuration. Support different limit types (per-address, per-transaction, time-based). Include special handling for batch mints and multi-output transactions.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -473,7 +473,7 @@
               "5.1"
             ],
             "details": "Implement validator/rules/allowlist.py with AllowlistRule class. Add verify_merkle_proof() for proof validation against merkle_root in asset config. Parse recipient addresses from PSBT outputs for verification. Support multiple proof formats and hash functions. Include proof caching and batch verification optimizations. Handle invalid proofs gracefully with detailed error messages.",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T13:04:33.954Z",
+      "updated": "2025-08-18T13:10:23.983Z",
       "description": "Tasks for master context"
     }
   }
