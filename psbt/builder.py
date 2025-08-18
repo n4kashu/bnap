@@ -73,8 +73,9 @@ class PSBTKeyValue:
     
     def serialize(self) -> bytes:
         """Serialize key-value pair to PSBT format."""
+        from .utils import serialize_compact_size
         key = bytes([self.key_type]) + self.key_data
-        return varstr(key) + varstr(self.value)
+        return serialize_compact_size(len(key)) + key + serialize_compact_size(len(self.value)) + self.value
 
 
 @dataclass
