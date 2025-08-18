@@ -473,7 +473,7 @@
               "5.1"
             ],
             "details": "Implement validator/rules/allowlist.py with AllowlistRule class. Add verify_merkle_proof() for proof validation against merkle_root in asset config. Parse recipient addresses from PSBT outputs for verification. Support multiple proof formats and hash functions. Include proof caching and batch verification optimizations. Handle invalid proofs gracefully with detailed error messages.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T13:10:23.983Z",
+      "updated": "2025-08-18T13:31:24.784Z",
       "description": "Tasks for master context"
     }
   }
