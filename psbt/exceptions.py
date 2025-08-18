@@ -54,3 +54,8 @@ class ProprietaryFieldError(PSBTError):
 class AssetMetadataError(PSBTError):
     """Exception raised for asset metadata related errors."""
     pass
+
+
+class MetadataError(PSBTError):
+    """Exception raised for metadata encoding/decoding errors."""
+    pass
