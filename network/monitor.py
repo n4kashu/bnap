@@ -17,6 +17,7 @@ from enum import Enum
 from collections import defaultdict, deque
 import hashlib
 import weakref
+import statistics
 
 try:
     import zmq
@@ -55,6 +56,16 @@ class ReorgEvent(Enum):
     BLOCK_REVERTED = "block_reverted"
     TRANSACTION_UNCONFIRMED = "transaction_unconfirmed"
     CHAIN_RESTORED = "chain_restored"
+
+
+class MempoolEventType(Enum):
+    """Types of mempool events."""
+    TRANSACTION_ADDED = "transaction_added"
+    TRANSACTION_REMOVED = "transaction_removed"
+    TRANSACTION_REPLACED = "transaction_replaced"
+    TRANSACTION_CONFLICTED = "transaction_conflicted"
+    FEE_BUMP = "fee_bump"
+    MEMPOOL_FULL = "mempool_full"
 
 
 @dataclass
@@ -104,6 +115,64 @@ class ReorganizationEvent:
     new_block_hash: Optional[str] = None
     affected_transactions: List[str] = field(default_factory=list)
     details: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class MempoolTransaction:
+    """Represents a transaction in the mempool."""
+    txid: str
+    size: int
+    vsize: int
+    weight: int
+    fee: float
+    fee_rate: float
+    first_seen: datetime
+    last_seen: datetime
+    depends: List[str] = field(default_factory=list)
+    spent_by: List[str] = field(default_factory=list)
+    ancestors: int = 0
+    descendants: int = 0
+    ancestor_size: int = 0
+    descendant_size: int = 0
+    ancestor_fees: float = 0.0
+    descendant_fees: float = 0.0
+    bip125_replaceable: bool = False
+    raw_transaction: Optional[str] = None
+    
+    def __post_init__(self):
+        """Initialize additional fields."""
+        if not self.last_seen:
+            self.last_seen = self.first_seen
+
+
+@dataclass
+class MempoolEvent:
+    """Represents a mempool event."""
+    event_type: MempoolEventType
+    timestamp: datetime
+    txid: str
+    transaction: Optional[MempoolTransaction] = None
+    replaced_txid: Optional[str] = None
+    conflicted_txids: List[str] = field(default_factory=list)
+    details: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class MempoolStats:
+    """Statistics about mempool state."""
+    size: int = 0
+    bytes: int = 0
+    usage: int = 0
+    max_mempool: int = 0
+    mempool_min_fee: float = 0.0
+    min_relay_tx_fee: float = 0.0
+    total_fees: float = 0.0
+    avg_fee_rate: float = 0.0
+    median_fee_rate: float = 0.0
+    min_fee_rate: float = 0.0
+    max_fee_rate: float = 0.0
+    unbroadcast_count: int = 0
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -801,6 +870,477 @@ class ConfirmationMonitor:
         self.stop()
 
 
+class MempoolMonitor:
+    """
+    Comprehensive mempool monitor for tracking pending transactions and detecting conflicts.
+    """
+    
+    def __init__(
+        self,
+        rpc_client: BitcoinRPCClient,
+        config: Optional[MonitorConfig] = None
+    ):
+        """
+        Initialize mempool monitor.
+        
+        Args:
+            rpc_client: Bitcoin RPC client
+            config: Monitoring configuration
+        """
+        self.rpc_client = rpc_client
+        self.config = config or MonitorConfig()
+        self.logger = logging.getLogger(__name__)
+        
+        # Mempool state
+        self._mempool_txs: Dict[str, MempoolTransaction] = {}
+        self._mempool_lock = threading.RLock()
+        
+        # Address and asset filtering
+        self._watched_addresses: Set[str] = set()
+        self._watched_assets: Set[str] = set()
+        self._filter_lock = threading.RLock()
+        
+        # Conflict detection
+        self._input_spending: Dict[str, str] = {}  # input_id -> txid
+        self._conflicts: Dict[str, List[str]] = {}  # txid -> conflicted_txids
+        
+        # Event callbacks
+        self._event_callbacks: List[Callable[[MempoolEvent], None]] = []
+        self._stats_callbacks: List[Callable[[MempoolStats], None]] = []
+        
+        # Monitoring state
+        self._monitoring_enabled = False
+        self._monitoring_thread = None
+        
+        # Statistics
+        self._current_stats = MempoolStats()
+        self._historical_stats: deque = deque(maxlen=1000)  # Keep last 1000 stat snapshots
+        self._stats_lock = threading.Lock()
+        
+        # Performance tracking
+        self._last_update_time = None
+        self._update_count = 0
+    
+    def add_watched_address(self, address: str):
+        """Add address to watch for mempool events."""
+        with self._filter_lock:
+            self._watched_addresses.add(address.strip().lower())
+        self.logger.info(f"Added watched address: {address}")
+    
+    def remove_watched_address(self, address: str):
+        """Remove address from watch list."""
+        with self._filter_lock:
+            self._watched_addresses.discard(address.strip().lower())
+        self.logger.info(f"Removed watched address: {address}")
+    
+    def add_watched_asset(self, asset_id: str):
+        """Add asset ID to watch for mempool events."""
+        with self._filter_lock:
+            self._watched_assets.add(asset_id)
+        self.logger.info(f"Added watched asset: {asset_id}")
+    
+    def remove_watched_asset(self, asset_id: str):
+        """Remove asset ID from watch list."""
+        with self._filter_lock:
+            self._watched_assets.discard(asset_id)
+        self.logger.info(f"Removed watched asset: {asset_id}")
+    
+    def add_event_callback(self, callback: Callable[[MempoolEvent], None]):
+        """Add callback for mempool events."""
+        self._event_callbacks.append(callback)
+    
+    def add_stats_callback(self, callback: Callable[[MempoolStats], None]):
+        """Add callback for mempool statistics updates."""
+        self._stats_callbacks.append(callback)
+    
+    def start(self):
+        """Start mempool monitoring."""
+        if self._monitoring_enabled:
+            return
+        
+        self._monitoring_enabled = True
+        self._monitoring_thread = threading.Thread(target=self._monitoring_worker, daemon=True)
+        self._monitoring_thread.start()
+        
+        self.logger.info("Mempool monitoring started")
+    
+    def stop(self):
+        """Stop mempool monitoring."""
+        self._monitoring_enabled = False
+        
+        if self._monitoring_thread:
+            self._monitoring_thread.join(timeout=5.0)
+        
+        self.logger.info("Mempool monitoring stopped")
+    
+    def get_mempool_transaction(self, txid: str) -> Optional[MempoolTransaction]:
+        """Get mempool transaction by TXID."""
+        with self._mempool_lock:
+            return self._mempool_txs.get(txid)
+    
+    def get_all_mempool_transactions(self) -> List[MempoolTransaction]:
+        """Get all current mempool transactions."""
+        with self._mempool_lock:
+            return list(self._mempool_txs.values())
+    
+    def get_transactions_by_fee_rate(self, min_fee_rate: float, max_fee_rate: Optional[float] = None) -> List[MempoolTransaction]:
+        """Get transactions within fee rate range."""
+        with self._mempool_lock:
+            transactions = []
+            for tx in self._mempool_txs.values():
+                if tx.fee_rate >= min_fee_rate:
+                    if max_fee_rate is None or tx.fee_rate <= max_fee_rate:
+                        transactions.append(tx)
+            return sorted(transactions, key=lambda t: t.fee_rate, reverse=True)
+    
+    def get_conflicts(self, txid: str) -> List[str]:
+        """Get conflicting transaction IDs for given TXID."""
+        return self._conflicts.get(txid, [])
+    
+    def get_current_stats(self) -> MempoolStats:
+        """Get current mempool statistics."""
+        with self._stats_lock:
+            return self._current_stats
+    
+    def get_historical_stats(self, hours: int = 1) -> List[MempoolStats]:
+        """Get historical mempool statistics for the last N hours."""
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+        
+        with self._stats_lock:
+            return [
+                stats for stats in self._historical_stats 
+                if stats.timestamp >= cutoff_time
+            ]
+    
+    def estimate_confirmation_probability(self, fee_rate: float) -> float:
+        """
+        Estimate probability of confirmation in next block based on current mempool.
+        
+        Args:
+            fee_rate: Fee rate in sat/vB
+            
+        Returns:
+            Probability between 0.0 and 1.0
+        """
+        with self._mempool_lock:
+            if not self._mempool_txs:
+                return 1.0
+            
+            # Calculate percentile of this fee rate
+            all_fee_rates = [tx.fee_rate for tx in self._mempool_txs.values()]
+            all_fee_rates.sort(reverse=True)
+            
+            # Find position in sorted list
+            position = len(all_fee_rates)
+            for i, rate in enumerate(all_fee_rates):
+                if fee_rate >= rate:
+                    position = i
+                    break
+            
+            # Estimate based on position (assuming ~1MB blocks)
+            block_capacity_vbytes = 1_000_000  # Approximate
+            total_vbytes = sum(tx.vsize for tx in self._mempool_txs.values())
+            
+            if total_vbytes <= block_capacity_vbytes:
+                return 1.0
+            
+            # Calculate cumulative vbytes up to this fee rate
+            cumulative_vbytes = 0
+            for rate in all_fee_rates:
+                if rate < fee_rate:
+                    break
+                # Find transactions with this rate
+                for tx in self._mempool_txs.values():
+                    if tx.fee_rate == rate:
+                        cumulative_vbytes += tx.vsize
+            
+            return min(1.0, block_capacity_vbytes / max(1, cumulative_vbytes))
+    
+    def _monitoring_worker(self):
+        """Main monitoring worker thread."""
+        self.logger.info("Mempool monitoring worker started")
+        
+        while self._monitoring_enabled:
+            try:
+                start_time = time.time()
+                
+                # Update mempool state
+                self._update_mempool_state()
+                
+                # Update statistics
+                self._update_statistics()
+                
+                self._update_count += 1
+                self._last_update_time = datetime.now(timezone.utc)
+                
+                # Sleep for remaining time
+                elapsed = time.time() - start_time
+                sleep_time = max(0.1, self.config.polling_interval_seconds - elapsed)
+                
+                for _ in range(int(sleep_time * 10)):
+                    if not self._monitoring_enabled:
+                        break
+                    time.sleep(0.1)
+                
+            except Exception as e:
+                if self._monitoring_enabled:
+                    self.logger.error(f"Mempool monitoring error: {e}")
+                    time.sleep(5.0)
+        
+        self.logger.info("Mempool monitoring worker stopped")
+    
+    def _update_mempool_state(self):
+        """Update current mempool state."""
+        try:
+            # Get current mempool
+            current_mempool = self.rpc_client.getrawmempool(verbose=True)
+            current_txids = set(current_mempool.keys())
+            
+            with self._mempool_lock:
+                previous_txids = set(self._mempool_txs.keys())
+                
+                # Find new transactions
+                new_txids = current_txids - previous_txids
+                
+                # Find removed transactions
+                removed_txids = previous_txids - current_txids
+                
+                # Process new transactions
+                for txid in new_txids:
+                    tx_info = current_mempool.get(txid)
+                    if tx_info:
+                        mempool_tx = self._create_mempool_transaction(txid, tx_info)
+                        self._mempool_txs[txid] = mempool_tx
+                        
+                        # Check for conflicts
+                        self._check_for_conflicts(mempool_tx)
+                        
+                        # Emit event
+                        if self._should_track_transaction(mempool_tx):
+                            event = MempoolEvent(
+                                event_type=MempoolEventType.TRANSACTION_ADDED,
+                                timestamp=datetime.now(timezone.utc),
+                                txid=txid,
+                                transaction=mempool_tx
+                            )
+                            self._emit_event(event)
+                
+                # Process removed transactions
+                for txid in removed_txids:
+                    removed_tx = self._mempool_txs.pop(txid, None)
+                    if removed_tx:
+                        # Clean up conflict tracking
+                        self._cleanup_conflicts(txid)
+                        
+                        # Emit event
+                        if self._should_track_transaction(removed_tx):
+                            event = MempoolEvent(
+                                event_type=MempoolEventType.TRANSACTION_REMOVED,
+                                timestamp=datetime.now(timezone.utc),
+                                txid=txid,
+                                transaction=removed_tx
+                            )
+                            self._emit_event(event)
+                
+                # Update existing transactions
+                for txid in current_txids.intersection(previous_txids):
+                    tx_info = current_mempool.get(txid)
+                    if tx_info and txid in self._mempool_txs:
+                        old_tx = self._mempool_txs[txid]
+                        new_tx = self._create_mempool_transaction(txid, tx_info)
+                        new_tx.first_seen = old_tx.first_seen  # Preserve original timestamp
+                        
+                        # Check for fee bumps (RBF)
+                        if new_tx.fee > old_tx.fee:
+                            event = MempoolEvent(
+                                event_type=MempoolEventType.FEE_BUMP,
+                                timestamp=datetime.now(timezone.utc),
+                                txid=txid,
+                                transaction=new_tx,
+                                details={
+                                    'old_fee': old_tx.fee,
+                                    'new_fee': new_tx.fee,
+                                    'fee_increase': new_tx.fee - old_tx.fee
+                                }
+                            )
+                            if self._should_track_transaction(new_tx):
+                                self._emit_event(event)
+                        
+                        self._mempool_txs[txid] = new_tx
+                
+        except Exception as e:
+            self.logger.error(f"Failed to update mempool state: {e}")
+    
+    def _create_mempool_transaction(self, txid: str, tx_info: Dict[str, Any]) -> MempoolTransaction:
+        """Create MempoolTransaction from RPC data."""
+        now = datetime.now(timezone.utc)
+        
+        return MempoolTransaction(
+            txid=txid,
+            size=tx_info.get('size', 0),
+            vsize=tx_info.get('vsize', 0),
+            weight=tx_info.get('weight', 0),
+            fee=tx_info.get('fee', 0.0),
+            fee_rate=tx_info.get('fee', 0.0) / max(1, tx_info.get('vsize', 1)) * 100_000_000,  # sat/vB
+            first_seen=now,
+            last_seen=now,
+            depends=tx_info.get('depends', []),
+            spent_by=tx_info.get('spentby', []),
+            ancestors=tx_info.get('ancestorcount', 0),
+            descendants=tx_info.get('descendantcount', 0),
+            ancestor_size=tx_info.get('ancestorsize', 0),
+            descendant_size=tx_info.get('descendantsize', 0),
+            ancestor_fees=tx_info.get('ancestorfees', 0.0),
+            descendant_fees=tx_info.get('descendantfees', 0.0),
+            bip125_replaceable=tx_info.get('bip125-replaceable', False)
+        )
+    
+    def _check_for_conflicts(self, tx: MempoolTransaction):
+        """Check for transaction conflicts based on spent inputs."""
+        try:
+            # Get raw transaction to analyze inputs
+            raw_tx = self.rpc_client.getrawtransaction(tx.txid, True)
+            
+            conflicts = []
+            
+            # Check each input
+            for vin in raw_tx.get('vin', []):
+                if 'txid' in vin and 'vout' in vin:
+                    input_id = f"{vin['txid']}:{vin['vout']}"
+                    
+                    # Check if this input is already being spent
+                    if input_id in self._input_spending:
+                        existing_txid = self._input_spending[input_id]
+                        if existing_txid != tx.txid:
+                            conflicts.append(existing_txid)
+                    else:
+                        self._input_spending[input_id] = tx.txid
+            
+            # Record conflicts
+            if conflicts:
+                self._conflicts[tx.txid] = conflicts
+                
+                # Emit conflict event
+                event = MempoolEvent(
+                    event_type=MempoolEventType.TRANSACTION_CONFLICTED,
+                    timestamp=datetime.now(timezone.utc),
+                    txid=tx.txid,
+                    transaction=tx,
+                    conflicted_txids=conflicts
+                )
+                self._emit_event(event)
+                
+                self.logger.warning(f"Transaction {tx.txid} conflicts with {conflicts}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to check conflicts for {tx.txid}: {e}")
+    
+    def _cleanup_conflicts(self, txid: str):
+        """Clean up conflict tracking for removed transaction."""
+        # Remove from conflicts
+        self._conflicts.pop(txid, None)
+        
+        # Remove from input spending tracking
+        inputs_to_remove = [
+            input_id for input_id, spending_txid in self._input_spending.items()
+            if spending_txid == txid
+        ]
+        
+        for input_id in inputs_to_remove:
+            del self._input_spending[input_id]
+    
+    def _should_track_transaction(self, tx: MempoolTransaction) -> bool:
+        """Check if transaction should be tracked based on filters."""
+        with self._filter_lock:
+            # If no filters set, track all transactions
+            if not self._watched_addresses and not self._watched_assets:
+                return True
+            
+            # Check address filters (would need to decode transaction to get addresses)
+            # For now, we'll track all transactions when address filters are set
+            if self._watched_addresses:
+                return True  # Simplified - would need full transaction decoding
+            
+            # Check asset filters (would need to parse BNAP protocol data)
+            if self._watched_assets:
+                return True  # Simplified - would need BNAP protocol parsing
+            
+            return False
+    
+    def _update_statistics(self):
+        """Update mempool statistics."""
+        try:
+            # Get basic mempool info
+            mempool_info = self.rpc_client.getmempoolinfo()
+            
+            # Calculate additional statistics
+            with self._mempool_lock:
+                all_fees = [tx.fee_rate for tx in self._mempool_txs.values() if tx.fee_rate > 0]
+                
+                stats = MempoolStats(
+                    size=mempool_info.get('size', 0),
+                    bytes=mempool_info.get('bytes', 0),
+                    usage=mempool_info.get('usage', 0),
+                    max_mempool=mempool_info.get('maxmempool', 0),
+                    mempool_min_fee=mempool_info.get('mempoolminfee', 0.0),
+                    min_relay_tx_fee=mempool_info.get('minrelaytxfee', 0.0),
+                    total_fees=sum(tx.fee for tx in self._mempool_txs.values()),
+                    unbroadcast_count=mempool_info.get('unbroadcastcount', 0)
+                )
+                
+                if all_fees:
+                    stats.avg_fee_rate = statistics.mean(all_fees)
+                    stats.median_fee_rate = statistics.median(all_fees)
+                    stats.min_fee_rate = min(all_fees)
+                    stats.max_fee_rate = max(all_fees)
+            
+            with self._stats_lock:
+                self._current_stats = stats
+                self._historical_stats.append(stats)
+            
+            # Notify stats callbacks
+            for callback in self._stats_callbacks:
+                try:
+                    callback(stats)
+                except Exception as e:
+                    self.logger.error(f"Stats callback error: {e}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to update statistics: {e}")
+    
+    def _emit_event(self, event: MempoolEvent):
+        """Emit mempool event to all callbacks."""
+        for callback in self._event_callbacks:
+            try:
+                callback(event)
+            except Exception as e:
+                self.logger.error(f"Event callback error: {e}")
+    
+    def get_monitoring_statistics(self) -> Dict[str, Any]:
+        """Get monitoring performance statistics."""
+        return {
+            'monitoring_enabled': self._monitoring_enabled,
+            'update_count': self._update_count,
+            'last_update_time': self._last_update_time.isoformat() if self._last_update_time else None,
+            'mempool_transactions': len(self._mempool_txs),
+            'watched_addresses': len(self._watched_addresses),
+            'watched_assets': len(self._watched_assets),
+            'active_conflicts': len(self._conflicts),
+            'historical_stats_count': len(self._historical_stats),
+            'event_callbacks': len(self._event_callbacks),
+            'stats_callbacks': len(self._stats_callbacks)
+        }
+    
+    def __enter__(self):
+        """Context manager entry."""
+        self.start()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.stop()
+
+
 # Convenience functions
 
 def create_monitor(
@@ -826,6 +1366,31 @@ def create_monitor(
     
     rpc_client = BitcoinRPCClient(rpc_config)
     return ConfirmationMonitor(rpc_client, monitor_config)
+
+
+def create_mempool_monitor(
+    host: str = "localhost",
+    port: int = 8332,
+    username: str = "rpc",
+    password: str = "rpc",
+    polling_interval: int = 30
+) -> MempoolMonitor:
+    """Create a mempool monitor with custom configuration."""
+    rpc_config = RPCConfig(
+        host=host,
+        port=port,
+        username=username,
+        password=password
+    )
+    
+    monitor_config = MonitorConfig(
+        polling_interval_seconds=polling_interval,
+        enable_zmq=False,  # Focus on polling for mempool
+        enable_polling=True
+    )
+    
+    rpc_client = BitcoinRPCClient(rpc_config)
+    return MempoolMonitor(rpc_client, monitor_config)
 
 
 # Testing and CLI interface
@@ -873,6 +1438,68 @@ def test_monitor():
         return False
 
 
+def test_mempool_monitor():
+    """Test the mempool monitor."""
+    print("Testing Mempool Monitor...")
+    print("=" * 50)
+    
+    try:
+        # Create mempool monitor
+        mempool_monitor = create_mempool_monitor(polling_interval=10)  # Fast polling for test
+        
+        # Test connection
+        if not mempool_monitor.rpc_client.test_connection():
+            print("✗ Cannot connect to Bitcoin Core")
+            return False
+        
+        print("✓ Connected to Bitcoin Core")
+        
+        # Add event callback for testing
+        def event_callback(event):
+            print(f"  Event: {event.event_type.value} for {event.txid[:12]}...")
+        
+        mempool_monitor.add_event_callback(event_callback)
+        
+        # Add stats callback
+        def stats_callback(stats):
+            print(f"  Stats: {stats.size} transactions, avg fee: {stats.avg_fee_rate:.1f} sat/vB")
+        
+        mempool_monitor.add_stats_callback(stats_callback)
+        
+        # Start monitoring
+        mempool_monitor.start()
+        print("✓ Mempool monitor started")
+        
+        # Get initial statistics
+        stats = mempool_monitor.get_current_stats()
+        print(f"✓ Current mempool: {stats.size} transactions")
+        print(f"✓ Total bytes: {stats.bytes:,}")
+        print(f"✓ Memory usage: {stats.usage:,} bytes")
+        
+        # Test fee rate queries
+        high_fee_txs = mempool_monitor.get_transactions_by_fee_rate(10.0)  # > 10 sat/vB
+        print(f"✓ High fee transactions: {len(high_fee_txs)}")
+        
+        # Test monitoring statistics
+        monitor_stats = mempool_monitor.get_monitoring_statistics()
+        print(f"✓ Monitoring stats: {monitor_stats['mempool_transactions']} tracked")
+        
+        # Brief monitoring period
+        print("✓ Monitoring for 5 seconds...")
+        time.sleep(5)
+        
+        # Stop monitoring
+        mempool_monitor.stop()
+        print("✓ Mempool monitor stopped")
+        
+        print("\nMempool monitor test completed successfully!")
+        return True
+        
+    except Exception as e:
+        print(f"✗ Test failed: {e}")
+        return False
+
+
 if __name__ == "__main__":
     import sys
     
@@ -883,16 +1510,41 @@ if __name__ == "__main__":
     )
     
     if len(sys.argv) > 1 and sys.argv[1] == "test":
-        success = test_monitor()
+        print("Bitcoin Network Monitoring System")
+        print("=" * 60)
+        
+        # Test confirmation monitor
+        success1 = test_monitor()
+        
+        print()  # Separator
+        
+        # Test mempool monitor
+        success2 = test_mempool_monitor()
+        
+        overall_success = success1 and success2
+        if overall_success:
+            print("\n🎉 All monitoring tests passed!")
+        else:
+            print(f"\n❌ Some tests failed: Confirmation={success1}, Mempool={success2}")
+        
+        sys.exit(0 if overall_success else 1)
+    
+    elif len(sys.argv) > 1 and sys.argv[1] == "mempool":
+        success = test_mempool_monitor()
         sys.exit(0 if success else 1)
     
     else:
-        print("Bitcoin Transaction Confirmation Monitor")
-        print("Usage: python monitor.py test")
+        print("Bitcoin Network Monitoring System")
+        print("Usage: python monitor.py <command>")
+        print("Commands:")
+        print("  test     - Run both confirmation and mempool monitoring tests")
+        print("  mempool  - Run mempool monitoring test only")
         print("\nFeatures:")
         print("- ZMQ subscription for real-time updates")
         print("- Polling fallback for reliability")
         print("- Blockchain reorganization detection")
         print("- Configurable confirmation thresholds")
         print("- Batch monitoring support")
+        print("- Mempool monitoring with conflict detection")
+        print("- Fee rate analysis and statistics")
         print("- Event callbacks and notifications")
