@@ -476,7 +476,7 @@ class LocalStorage(ContentStorage):
 class IPFSStorage(ContentStorage):
     """IPFS distributed storage."""
     
-    def __init__(self, gateway_url: str = '/ip4/127.0.0.1/tcp/5001/http'):
+    def __init__(self, gateway_url: str = '/ip4/127.0.0.1/tcp/5001'):
         if not IPFS_AVAILABLE:
             raise ImportError("ipfshttpclient required for IPFS storage. Install with: pip install ipfshttpclient")
         
@@ -583,11 +583,20 @@ class HTTPStorage(ContentStorage):
 
 
 class TaprootStorage(ContentStorage):
-    """Taproot envelope storage for small content."""
+    """Basic Taproot envelope storage for small content."""
     
     def __init__(self, max_size: int = 400):  # Bitcoin script size limit
         self.max_size = max_size
         self.hasher = ContentHasher()
+        
+        # Try to use enhanced Taproot storage if available
+        try:
+            from .taproot import EnhancedTaprootStorage
+            self._enhanced_storage = EnhancedTaprootStorage(max_chunk_size=max_size, auto_compress=True)
+            self._use_enhanced = True
+        except ImportError:
+            self._enhanced_storage = None
+            self._use_enhanced = False
     
     def store(self, content: Union[bytes, BinaryIO], 
               filename: Optional[str] = None, 
@@ -597,10 +606,17 @@ class TaprootStorage(ContentStorage):
             content_data = content
         else:
             content_data = content.read()
+            if hasattr(content, 'seek'):
+                content.seek(0)
         
         if len(content_data) > self.max_size:
             raise ValueError(f"Content too large for Taproot storage: {len(content_data)} > {self.max_size}")
         
+        # Use enhanced storage if available
+        if self._use_enhanced and self._enhanced_storage:
+            return self._enhanced_storage.store(content, filename, content_type)
+        
+        # Fallback to basic implementation
         content_hash = self.hasher.hash_content(content_data, content_type)
         
         # Create Taproot envelope (simplified)
@@ -611,7 +627,8 @@ class TaprootStorage(ContentStorage):
         
         metadata = {
             'envelope_data': envelope_data.hex(),
-            'envelope_size': len(envelope_data)
+            'envelope_size': len(envelope_data),
+            'storage_type': 'basic'
         }
         
         return ContentInfo(
@@ -626,17 +643,23 @@ class TaprootStorage(ContentStorage):
     
     def retrieve(self, uri: str) -> bytes:
         """Retrieve content from Taproot envelope."""
-        raise NotImplementedError("Taproot retrieval requires blockchain integration")
+        if self._use_enhanced and self._enhanced_storage:
+            return self._enhanced_storage.retrieve(uri)
+        
+        raise NotImplementedError("Basic Taproot retrieval requires blockchain integration")
     
     def exists(self, uri: str) -> bool:
         """Check if Taproot envelope exists."""
+        if self._use_enhanced and self._enhanced_storage:
+            return self._enhanced_storage.exists(uri)
+        
         return uri.startswith('taproot://')
     
     def get_storage_type(self) -> StorageType:
         return StorageType.TAPROOT
     
     def _create_envelope(self, content: bytes, content_type: Optional[str]) -> bytes:
-        """Create Taproot envelope data structure."""
+        """Create basic Taproot envelope data structure."""
         # Simplified envelope format: type_length + type + content_length + content
         type_bytes = (content_type or '').encode('utf-8')
         type_length = len(type_bytes).to_bytes(1, 'big')

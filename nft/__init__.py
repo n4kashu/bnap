@@ -53,6 +53,21 @@ try:
 except ImportError:
     GATEWAY_AVAILABLE = False
 
+# Enhanced Taproot storage
+try:
+    from .taproot import (
+        EnhancedTaprootStorage,
+        TaprootEnvelope,
+        TaprootCompressor,
+        TaprootChunker,
+        TaprootVersion,
+        CompressionType,
+        estimate_taproot_cost
+    )
+    ENHANCED_TAPROOT_AVAILABLE = True
+except ImportError:
+    ENHANCED_TAPROOT_AVAILABLE = False
+
 __version__ = "1.0.0"
 
 __all__ = [
@@ -87,3 +102,6 @@ if ENHANCED_IPFS_AVAILABLE:
 
 if GATEWAY_AVAILABLE:
     __all__.extend(["URIResolver", "HTTPGatewayStorage", "HTTPGatewayConfig", "ContentCache", "resolve_nft_content"])
+
+if ENHANCED_TAPROOT_AVAILABLE:
+    __all__.extend(["EnhancedTaprootStorage", "TaprootEnvelope", "TaprootCompressor", "TaprootChunker", "TaprootVersion", "CompressionType", "estimate_taproot_cost"])
