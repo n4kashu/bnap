@@ -299,7 +299,7 @@
         "dependencies": [
           1
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -341,7 +341,7 @@
               "4.1"
             ],
             "details": "Implement crypto/commitments.py with commitment generation from asset_id (32 bytes), amount (8 bytes), and operation codes. Define serialization format for consistent hashing across implementations. Use SHA-256 with domain separation tags to prevent cross-protocol attacks. Support both fungible token and NFT commitment structures. Include commitment verification functions and test for deterministic output.",
-            "status": "in-progress",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -353,7 +353,7 @@
               "4.2"
             ],
             "details": "Create ECDSA signing functions using secp256k1 curve parameters. Implement RFC6979 deterministic nonce generation to prevent nonce reuse. Add signature verification with public key recovery support. Handle DER encoding for Bitcoin compatibility. Include functions for signing transaction hashes with proper sighash flags. Ensure low-S signature normalization for malleability protection.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -365,7 +365,7 @@
               "4.3"
             ],
             "details": "Implement BIP340 Schnorr signature algorithm with x-only public keys. Use deterministic nonce generation with auxiliary randomness for security. Create functions for signing with tweaked keys for Taproot spending. Add batch verification support for efficiency. Include tagged hash functions for signature challenges. Validate implementation against BIP340 test vectors.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -377,7 +377,7 @@
               "4.6"
             ],
             "details": "Build MuSig2 nonce generation with proper randomness and deterministic fallback. Create secure nonce storage system to prevent reuse attacks. Implement nonce commitment phase with hash-based commitments. Add nonce aggregation functions for combining multiple signers' nonces. Include session management to track ongoing signing sessions. Ensure nonces are deleted after use to prevent replay attacks.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -388,7 +388,7 @@
               "4.7"
             ],
             "details": "Create partial signature generation using individual signer keys and aggregated nonces. Implement signature aggregation algorithm to combine partial signatures. Add verification functions for partial signatures before aggregation. Include key aggregation with proper coefficient calculation. Support threshold signatures (k-of-n) for future expansion. Handle edge cases like duplicate signers and malicious partial signatures.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -399,7 +399,7 @@
               "4.2"
             ],
             "details": "Implement encrypted key storage using AES-256-GCM with key derivation from passwords. Create key manager class for loading, storing, and rotating keys. Add support for hardware security module (HSM) integration stubs. Include secure memory handling to prevent key material leakage. Implement key backup and recovery mechanisms. Ensure keys are zeroed in memory after use.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -415,7 +415,7 @@
               "4.9"
             ],
             "details": "Implement unit tests for each cryptographic primitive against BIP341 (Taproot), BIP340 (Schnorr), and BIP327 (MuSig2) test vectors. Create integration tests for complete signing workflows. Add property-based tests for edge cases and randomized inputs. Include performance benchmarks for cryptographic operations. Test interoperability with Bitcoin Core and other implementations. Verify security properties like signature non-malleability.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -432,7 +432,7 @@
           3,
           4
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T11:37:21.661Z",
+      "updated": "2025-08-18T12:48:39.455Z",
       "description": "Tasks for master context"
     }
   }
