@@ -21,7 +21,8 @@ from .core import (
 from .rules import (
     SupplyLimitRule,
     MintLimitRule,
-    AllowlistRule
+    AllowlistRule,
+    ContentHashRule
 )
 
 __all__ = [
@@ -36,5 +37,6 @@ __all__ = [
     "validate_psbt_quick",
     "SupplyLimitRule",
     "MintLimitRule",
-    "AllowlistRule"
+    "AllowlistRule",
+    "ContentHashRule"
 ]

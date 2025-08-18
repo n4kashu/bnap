@@ -77,6 +77,7 @@ class ValidationContext:
     collection_id: Optional[int] = None
     token_id: Optional[int] = None
     content_hash: Optional[bytes] = None
+    metadata: Optional[Union[str, Dict[str, Any]]] = None
     
     # Registry state
     current_supply: Optional[int] = None
@@ -272,14 +273,15 @@ class ValidationEngine:
         from .rules.supply_limit import SupplyLimitRule
         from .rules.mint_limits import MintLimitRule
         from .rules.allowlist import AllowlistRule
+        from .rules.content_hash import ContentHashRule
         
         # Register implemented rules
         self.register_rule(SupplyLimitRule())
         self.register_rule(MintLimitRule())
         self.register_rule(AllowlistRule())
+        self.register_rule(ContentHashRule())
         
         # Placeholder for remaining rule registrations - will be implemented in subtasks
-        # self.register_rule(ContentHashRule())
     
     def register_rule(self, rule: ValidationRule):
         """
