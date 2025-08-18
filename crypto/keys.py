@@ -67,6 +67,74 @@ def hash160(data: bytes) -> bytes:
         return hashlib.sha256(sha256_hash + b'ripemd160_fallback').digest()[:20]
 
 
+def tagged_hash(tag: str, data: bytes) -> bytes:
+    """
+    Compute BIP340/341 tagged hash: SHA256(SHA256(tag) + SHA256(tag) + data).
+    
+    Args:
+        tag: Tag string for the hash
+        data: Data to hash
+        
+    Returns:
+        32-byte tagged hash
+    """
+    tag_bytes = tag.encode('utf-8')
+    tag_hash = hashlib.sha256(tag_bytes).digest()
+    return hashlib.sha256(tag_hash + tag_hash + data).digest()
+
+
+def lift_x(x: bytes) -> Optional[bytes]:
+    """
+    Lift x-coordinate to full point, returning the even y-coordinate point.
+    
+    Args:
+        x: 32-byte x-coordinate
+        
+    Returns:
+        33-byte compressed public key with even y, or None if invalid
+    """
+    if len(x) != 32:
+        return None
+        
+    try:
+        # Try both parities and return the one with even y
+        for prefix in [b'\x02', b'\x03']:
+            try:
+                candidate = prefix + x
+                pubkey = CoinCurvePublicKey(candidate)
+                # Check if y-coordinate is even
+                uncompressed = pubkey.format(compressed=False)
+                y_bytes = uncompressed[33:]  # Last 32 bytes are y-coordinate
+                y_int = int.from_bytes(y_bytes, 'big')
+                if y_int % 2 == 0:  # Even y-coordinate
+                    return candidate
+            except:
+                continue
+        return None
+    except:
+        return None
+
+
+def has_even_y(pubkey: bytes) -> bool:
+    """
+    Check if public key has even y-coordinate.
+    
+    Args:
+        pubkey: 33-byte compressed public key
+        
+    Returns:
+        True if y-coordinate is even
+    """
+    try:
+        point = CoinCurvePublicKey(pubkey)
+        uncompressed = point.format(compressed=False)
+        y_bytes = uncompressed[33:]
+        y_int = int.from_bytes(y_bytes, 'big')
+        return y_int % 2 == 0
+    except:
+        return False
+
+
 class PrivateKey:
     """
     Wrapper for private key operations with BIP32 support.
@@ -144,6 +212,69 @@ class PrivateKey:
         if len(message_hash) != 32:
             raise InvalidKeyError("Message hash must be 32 bytes")
         return self._key.sign_recoverable(message_hash)
+    
+    def tweak_add(self, tweak: bytes) -> 'PrivateKey':
+        """
+        Add tweak to private key for Taproot key tweaking.
+        
+        Args:
+            tweak: 32-byte tweak value
+            
+        Returns:
+            Tweaked private key
+        """
+        if len(tweak) != 32:
+            raise InvalidKeyError("Tweak must be 32 bytes")
+            
+        # Add tweak to private key: (priv + tweak) mod n
+        priv_int = int.from_bytes(self.bytes, 'big')
+        tweak_int = int.from_bytes(tweak, 'big')
+        tweaked_int = (priv_int + tweak_int) % BIP32_CURVE_ORDER
+        
+        if tweaked_int == 0:
+            raise InvalidKeyError("Tweaked key is zero")
+            
+        tweaked_bytes = tweaked_int.to_bytes(32, 'big')
+        return PrivateKey(tweaked_bytes)
+    
+    def taproot_tweak_private_key(self, merkle_root=None):
+        """
+        Tweak private key for Taproot according to BIP341.
+        
+        Args:
+            merkle_root: 32-byte Merkle root of script tree (None for key-path only)
+            
+        Returns:
+            Tuple of (tweaked_private_key, negated_flag)
+        """
+        internal_pubkey = self.public_key()
+        
+        # Get x-only coordinate
+        x_only = internal_pubkey.x_only
+        
+        # Check if internal key has even y
+        internal_has_even_y = has_even_y(internal_pubkey.bytes)
+        
+        # If internal key doesn't have even y, negate the private key
+        if not internal_has_even_y:
+            negated_priv_int = (-int.from_bytes(self.bytes, 'big')) % BIP32_CURVE_ORDER
+            negated_priv = PrivateKey(negated_priv_int.to_bytes(32, 'big'))
+        else:
+            negated_priv = self
+        
+        # Compute tweak
+        tweak_data = x_only
+        if merkle_root is not None:
+            if len(merkle_root) != 32:
+                raise InvalidKeyError("Merkle root must be 32 bytes")
+            tweak_data += merkle_root
+        
+        tweak = tagged_hash("TapTweak", tweak_data)
+        
+        # Apply tweak
+        tweaked_private = negated_priv.tweak_add(tweak)
+        
+        return tweaked_private, not internal_has_even_y
 
 
 class PublicKey:
@@ -210,6 +341,87 @@ class PublicKey:
             return self._key.verify(signature, message_hash)
         except Exception:
             return False
+    
+    def tweak_add(self, tweak: bytes) -> 'PublicKey':
+        """
+        Add tweak to public key for Taproot key tweaking.
+        
+        Args:
+            tweak: 32-byte tweak value
+            
+        Returns:
+            Tweaked public key
+        """
+        if len(tweak) != 32:
+            raise InvalidKeyError("Tweak must be 32 bytes")
+        
+        try:
+            # Create private key from tweak and get its public key
+            tweak_private = CoinCurvePrivateKey(tweak)
+            tweak_public = tweak_private.public_key
+            
+            # Add points: P_tweaked = P_internal + tweak * G
+            from coincurve.keys import PublicKey as CoinCurvePublicKeyClass
+            internal_point = CoinCurvePublicKeyClass(self.bytes)
+            tweaked_point = CoinCurvePublicKeyClass.combine_keys([internal_point, tweak_public])
+            
+            return PublicKey(tweaked_point.format())
+        except Exception as e:
+            raise InvalidKeyError(f"Failed to tweak public key: {e}")
+    
+    def taproot_tweak_public_key(self, merkle_root=None):
+        """
+        Tweak public key for Taproot according to BIP341.
+        
+        Args:
+            merkle_root: 32-byte Merkle root of script tree (None for key-path only)
+            
+        Returns:
+            32-byte x-only tweaked public key
+        """
+        # Ensure we have even y-coordinate
+        internal_key = self.bytes
+        if not has_even_y(internal_key):
+            # Negate the point to get even y
+            uncompressed = self._key.format(compressed=False)
+            x_bytes = uncompressed[1:33]
+            y_bytes = uncompressed[33:]
+            
+            # Negate y-coordinate
+            y_int = int.from_bytes(y_bytes, 'big')
+            p = 2**256 - 2**32 - 977  # secp256k1 field prime
+            negated_y = (-y_int) % p
+            negated_y_bytes = negated_y.to_bytes(32, 'big')
+            
+            # Reconstruct point with negated y
+            negated_uncompressed = b'\x04' + x_bytes + negated_y_bytes
+            try:
+                negated_key = CoinCurvePublicKey(negated_uncompressed)
+                internal_key = negated_key.format(compressed=True)
+            except:
+                # Fallback: use lift_x
+                lifted = lift_x(self.x_only)
+                if lifted is not None:
+                    internal_key = lifted
+        
+        # Get x-only coordinate
+        x_only = internal_key[1:]  # Remove prefix
+        
+        # Compute tweak
+        tweak_data = x_only
+        if merkle_root is not None:
+            if len(merkle_root) != 32:
+                raise InvalidKeyError("Merkle root must be 32 bytes")
+            tweak_data += merkle_root
+        
+        tweak = tagged_hash("TapTweak", tweak_data)
+        
+        # Apply tweak to get tweaked public key
+        internal_pubkey = PublicKey(internal_key)
+        tweaked_pubkey = internal_pubkey.tweak_add(tweak)
+        
+        # Return x-only coordinate of tweaked key
+        return tweaked_pubkey.x_only
 
 
 class ExtendedKey:
@@ -493,3 +705,84 @@ def parse_derivation_path(path: str) -> List[int]:
         indices.append(index)
     
     return indices
+
+
+# Taproot utility functions
+
+def compute_taproot_tweak(internal_pubkey_x, merkle_root=None):
+    """
+    Compute Taproot tweak according to BIP341.
+    
+    Args:
+        internal_pubkey_x: 32-byte x-only internal public key
+        merkle_root: Optional 32-byte Merkle root of script tree
+        
+    Returns:
+        32-byte tweak value
+    """
+    if len(internal_pubkey_x) != 32:
+        raise InvalidKeyError("Internal pubkey x-coordinate must be 32 bytes")
+    
+    tweak_data = internal_pubkey_x
+    if merkle_root is not None:
+        if len(merkle_root) != 32:
+            raise InvalidKeyError("Merkle root must be 32 bytes")
+        tweak_data += merkle_root
+    
+    return tagged_hash("TapTweak", tweak_data)
+
+
+def taproot_output_script(tweaked_pubkey_x: bytes) -> bytes:
+    """
+    Create Taproot output script (witness program).
+    
+    Args:
+        tweaked_pubkey_x: 32-byte x-only tweaked public key
+        
+    Returns:
+        34-byte P2TR output script
+    """
+    if len(tweaked_pubkey_x) != 32:
+        raise InvalidKeyError("Tweaked pubkey must be 32 bytes")
+    
+    # P2TR script: OP_1 <32-byte-tweaked-pubkey>
+    return b'\x51\x20' + tweaked_pubkey_x
+
+
+def extract_taproot_internal_key(tweaked_pubkey_x, merkle_root=None):
+    """
+    Extract internal public key from tweaked Taproot public key (if possible).
+    Note: This is generally not possible without knowing the internal key.
+    This function is provided for completeness but has limited practical use.
+    
+    Args:
+        tweaked_pubkey_x: 32-byte x-only tweaked public key
+        merkle_root: Optional Merkle root used in tweaking
+        
+    Returns:
+        None (extraction is generally not feasible)
+    """
+    # In practice, extracting the internal key from a tweaked key is not feasible
+    # without additional information. This would require solving the discrete log problem.
+    # This function exists for API completeness but returns None.
+    return None
+
+
+def verify_taproot_tweak(internal_pubkey, tweaked_pubkey_x, merkle_root=None):
+    """
+    Verify that a tweaked public key was correctly derived from an internal key.
+    
+    Args:
+        internal_pubkey: Internal public key
+        tweaked_pubkey_x: 32-byte x-only tweaked public key
+        merkle_root: Optional Merkle root used in tweaking
+        
+    Returns:
+        True if the tweak is valid
+    """
+    try:
+        # Compute expected tweaked key
+        expected_tweaked_x = internal_pubkey.taproot_tweak_public_key(merkle_root)
+        return expected_tweaked_x == tweaked_pubkey_x
+    except:
+        return False

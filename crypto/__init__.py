@@ -35,6 +35,12 @@ try:
         seed_to_master_key,
         get_standard_derivation_path,
         parse_derivation_path,
+        tagged_hash,
+        lift_x,
+        has_even_y,
+        compute_taproot_tweak,
+        taproot_output_script,
+        verify_taproot_tweak,
     )
 except ImportError:
     # Module not yet implemented
@@ -104,6 +110,12 @@ __all__ = [
     "seed_to_master_key",
     "get_standard_derivation_path",
     "parse_derivation_path",
+    "tagged_hash",
+    "lift_x", 
+    "has_even_y",
+    "compute_taproot_tweak",
+    "taproot_output_script",
+    "verify_taproot_tweak",
     
     # Commitments (when available)
     "AssetCommitment",

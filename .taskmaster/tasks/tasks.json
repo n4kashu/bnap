@@ -330,7 +330,7 @@
               "4.2"
             ],
             "details": "Implement the core tweaking formula K_output = P_internal + H(asset_commitment) * G in crypto/keys.py. Use tagged hashes as specified in BIP341 (TapTweak). Handle x-only public keys correctly with proper parity handling. Create functions for computing tweaked private keys for signing. Include helper functions for extracting internal keys from tweaked keys. Validate against BIP341 test vectors.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T11:17:19.860Z",
+      "updated": "2025-08-18T11:25:56.229Z",
       "description": "Tasks for master context"
     }
   }
