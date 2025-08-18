@@ -432,7 +432,7 @@
           3,
           4
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -440,7 +440,7 @@
             "description": "Create validator/core.py with main ValidationEngine class that orchestrates all validation operations",
             "dependencies": [],
             "details": "Design ValidationEngine class with methods for validate_mint_transaction(), validate_psbt(), and process_validation_request(). Implement plugin architecture for rule modules using abstract base classes. Create validation context object to pass state between rules. Add configuration loading for validator settings and keys. Include transaction parsing utilities and PSBT introspection methods.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -484,7 +484,7 @@
               "5.1"
             ],
             "details": "Create validator/rules/content_hash.py with ContentHashRule class. Implement hash validation for NFT metadata against declared content_hash. Support multiple hash algorithms (SHA-256, SHA3-256). Validate IPFS CIDs and URI references. Include metadata structure validation against NFT manifest schema. Add optional content retrieval and verification for accessible URIs.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -499,7 +499,7 @@
               "5.5"
             ],
             "details": "Build validator/signer.py with TransactionSigner class. Implement sign_psbt() supporting both ECDSA (P2WSH) and Schnorr (Taproot) signatures. Add secure key loading from encrypted storage or HSM. Create signing context with nonce generation and deterministic signatures. Include partial signature support for future multi-sig. Implement signature verification before finalizing.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -510,7 +510,7 @@
               "5.1"
             ],
             "details": "Create validator/errors.py with ValidationError hierarchy for different failure types. Implement error aggregation for multiple validation failures. Add structured error responses with error codes, descriptions, and remediation hints. Include validation trace for debugging which rules passed/failed. Support internationalization for error messages.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -522,7 +522,7 @@
               "5.7"
             ],
             "details": "Build validator/logging.py with structured logging for audit trail. Log all validation requests with timestamps, asset IDs, amounts, and decisions. Include request fingerprinting for deduplication. Add metrics collection for monitoring (validation rate, failure reasons, latency). Implement log rotation and archival. Support multiple output formats (JSON, syslog).",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -533,7 +533,7 @@
               "5.1"
             ],
             "details": "Implement validator/registry_client.py for registry communication. Add methods for querying asset rules, current supply, and validator keys. Implement atomic state updates after successful validations. Include connection pooling and retry logic for reliability. Add caching layer with TTL for frequently accessed data. Handle registry unavailability gracefully.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -552,7 +552,7 @@
               "5.9"
             ],
             "details": "Create tests/validator/ directory with test files for each module. Write unit tests for individual validation rules with edge cases. Add integration tests for complete validation flows. Include fixtures for valid/invalid PSBTs and test assets. Test error conditions like exceeded limits, invalid proofs, malformed inputs. Add performance tests for high-throughput scenarios. Mock registry interactions for isolated testing.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -567,7 +567,7 @@
         "dependencies": [
           4
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -575,7 +575,7 @@
             "description": "Create witness script builder for P2WSH covenants with validator signature verification",
             "dependencies": [],
             "details": "Implement scripts/p2wsh_covenant.py with functions to build witness scripts containing <ValidatorPubKey> OP_CHECKSIG. Create script templates for different asset operations (mint, transfer, burn). Build witness data generation functions for spending P2WSH outputs. Ensure proper script serialization and Bitcoin Script opcode usage. Include helper functions for script hash calculation and P2WSH address generation.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -584,7 +584,7 @@
             "description": "Build Taproot key-path and script-path spending with asset commitment tweaks",
             "dependencies": [],
             "details": "Create scripts/taproot_covenant.py with Taproot key tweaking using asset commitments (P = P_internal + H(asset_commitment) * G). Implement script tree construction for complex spending conditions. Build control block generation for script-path spending. Create functions for computing Taproot output keys and addresses. Support both key-path (validator signature only) and script-path (complex conditions) spending.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -596,7 +596,7 @@
               "6.2"
             ],
             "details": "Implement scripts/validator.py with script execution simulation, signature verification logic, and Bitcoin Core RPC integration for script validation. Create functions to validate witness data against scripts, verify Taproot control blocks, and check script consensus rules. Build test harness for running scripts against Bitcoin Core's script interpreter. Include debugging utilities for script execution traces.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -608,7 +608,7 @@
               "6.2"
             ],
             "details": "Build scripts/templates.py with pre-defined script patterns for fungible token minting, NFT creation, transfer operations, and burn operations. Create template variables for validator keys, asset IDs, and operation-specific parameters. Implement template compilation to actual scripts with parameter substitution. Support both P2WSH and Taproot template variants. Include templates for time-locked and multi-signature operations.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -620,7 +620,7 @@
               "6.2"
             ],
             "details": "Implement scripts/encoding.py with functions to serialize scripts to hex, deserialize from transactions, and convert between formats. Create human-readable script disassembly for debugging. Build witness stack encoding/decoding for P2WSH. Implement Taproot script commitment and leaf version handling. Support compact script representation for storage efficiency.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -635,7 +635,7 @@
               "6.5"
             ],
             "details": "Write tests/test_scripts.py with regtest integration for live script execution. Test P2WSH script creation and spending with valid/invalid signatures. Verify Taproot key-path and script-path spending scenarios. Test edge cases including empty witnesses, malformed scripts, and invalid opcodes. Create performance benchmarks for script operations. Implement fuzz testing for script parser robustness.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           }
         ]
@@ -650,7 +650,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -658,7 +658,7 @@
             "description": "Create the fundamental Merkle tree data structure with efficient node management and tree construction algorithms",
             "dependencies": [],
             "details": "Implement crypto/merkle.py with MerkleTree class containing node structure (hash, left, right children), tree construction from sorted address lists, proper leaf node formatting with 0x00 prefix for domain separation, efficient binary tree building for large datasets (10k+ addresses), tree height calculation and validation, and internal node hash computation using SHA-256(left_hash || right_hash)",
-            "status": "pending",
+            "status": "in-progress",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T13:31:24.784Z",
+      "updated": "2025-08-18T18:03:50.766Z",
       "description": "Tasks for master context"
     }
   }
