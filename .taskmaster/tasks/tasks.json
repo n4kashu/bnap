@@ -318,7 +318,7 @@
               "4.1"
             ],
             "details": "Implement BIP39 mnemonic generation and seed derivation with proper entropy sources. Create BIP32 extended key derivation for both public and private keys. Support standard derivation paths (m/84'/0'/0' for native segwit). Include functions for child key derivation, key serialization/deserialization, and fingerprint calculation. Ensure constant-time operations to prevent timing attacks.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -1027,7 +1027,7 @@
     ],
     "metadata": {
       "created": "2025-08-17T20:59:30.553Z",
-      "updated": "2025-08-18T11:13:53.629Z",
+      "updated": "2025-08-18T11:17:19.860Z",
       "description": "Tasks for master context"
     }
   }

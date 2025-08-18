@@ -28,9 +28,13 @@ try:
     from .keys import (
         PrivateKey,
         PublicKey,
+        ExtendedKey,
         derive_key_from_path,
         generate_mnemonic,
         mnemonic_to_seed,
+        seed_to_master_key,
+        get_standard_derivation_path,
+        parse_derivation_path,
     )
 except ImportError:
     # Module not yet implemented
@@ -92,10 +96,14 @@ __all__ = [
     
     # Keys (when available)
     "PrivateKey",
-    "PublicKey",
+    "PublicKey", 
+    "ExtendedKey",
     "derive_key_from_path",
     "generate_mnemonic",
     "mnemonic_to_seed",
+    "seed_to_master_key",
+    "get_standard_derivation_path",
+    "parse_derivation_path",
     
     # Commitments (when available)
     "AssetCommitment",

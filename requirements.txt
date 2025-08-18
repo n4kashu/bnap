@@ -8,6 +8,7 @@ coincurve==20.0.0
 
 # BIP39/BIP32 key derivation
 mnemonic==0.20
+pycryptodome==3.19.0
 
 # Testing framework
 pytest==7.4.3
