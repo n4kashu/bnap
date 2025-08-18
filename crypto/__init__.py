@@ -49,8 +49,19 @@ except ImportError:
 try:
     from .commitments import (
         AssetCommitment,
+        AssetType,
+        OperationType,
         generate_asset_commitment,
         commit_to_asset,
+        commit_to_nft,
+        verify_asset_commitment,
+        create_asset_commitment_tweak,
+        batch_commit_assets,
+        commitment_merkle_root,
+        create_mint_commitment,
+        create_nft_mint_commitment,
+        create_transfer_commitment,
+        create_burn_commitment,
     )
 except ImportError:
     # Module not yet implemented  
@@ -119,8 +130,19 @@ __all__ = [
     
     # Commitments (when available)
     "AssetCommitment",
+    "AssetType",
+    "OperationType",
     "generate_asset_commitment",
     "commit_to_asset",
+    "commit_to_nft",
+    "verify_asset_commitment",
+    "create_asset_commitment_tweak",
+    "batch_commit_assets",
+    "commitment_merkle_root",
+    "create_mint_commitment",
+    "create_nft_mint_commitment",
+    "create_transfer_commitment",
+    "create_burn_commitment",
     
     # Signatures (when available)  
     "ECDSASignature",
