@@ -164,7 +164,7 @@ class NFTMetadata:
     
     def _is_valid_url(self, url: str) -> bool:
         """Check if URL format is valid."""
-        valid_schemes = ['http://', 'https://', 'ipfs://', 'ar://', 'data:']
+        valid_schemes = ['http://', 'https://', 'ipfs://', 'ar://', 'data:', 'file://', 'taproot://']
         return any(url.startswith(scheme) for scheme in valid_schemes)
     
     def add_attribute(self, trait_type: str, value: Any, **kwargs) -> None:
