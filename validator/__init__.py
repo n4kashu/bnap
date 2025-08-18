@@ -19,7 +19,8 @@ from .core import (
 )
 
 from .rules import (
-    SupplyLimitRule
+    SupplyLimitRule,
+    MintLimitRule
 )
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     "ConfigurationError",
     "create_default_validator",
     "validate_psbt_quick",
-    "SupplyLimitRule"
+    "SupplyLimitRule",
+    "MintLimitRule"
 ]

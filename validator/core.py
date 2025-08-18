@@ -270,12 +270,13 @@ class ValidationEngine:
         
         # Import here to avoid circular imports
         from .rules.supply_limit import SupplyLimitRule
+        from .rules.mint_limits import MintLimitRule
         
         # Register implemented rules
         self.register_rule(SupplyLimitRule())
+        self.register_rule(MintLimitRule())
         
         # Placeholder for remaining rule registrations - will be implemented in subtasks
-        # self.register_rule(PerMintLimitRule())
         # self.register_rule(AllowlistRule())
         # self.register_rule(ContentHashRule())
     
