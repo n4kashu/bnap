@@ -68,6 +68,21 @@ try:
 except ImportError:
     ENHANCED_TAPROOT_AVAILABLE = False
 
+# Metadata immutability enforcement
+try:
+    from .immutability import (
+        ImmutableMetadata,
+        MetadataState,
+        ImmutabilityLevel,
+        ImmutabilityEnforcer,
+        ImmutabilityProof,
+        create_immutable_nft,
+        verify_metadata_immutability
+    )
+    IMMUTABILITY_AVAILABLE = True
+except ImportError:
+    IMMUTABILITY_AVAILABLE = False
+
 __version__ = "1.0.0"
 
 __all__ = [
@@ -105,3 +120,6 @@ if GATEWAY_AVAILABLE:
 
 if ENHANCED_TAPROOT_AVAILABLE:
     __all__.extend(["EnhancedTaprootStorage", "TaprootEnvelope", "TaprootCompressor", "TaprootChunker", "TaprootVersion", "CompressionType", "estimate_taproot_cost"])
+
+if IMMUTABILITY_AVAILABLE:
+    __all__.extend(["ImmutableMetadata", "MetadataState", "ImmutabilityLevel", "ImmutabilityEnforcer", "ImmutabilityProof", "create_immutable_nft", "verify_metadata_immutability"])
