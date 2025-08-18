@@ -18,134 +18,13 @@ import re
 # Add the project root to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import dependencies without circular import
+# Import dependencies
 import logging
 from datetime import datetime
 
-
-# Global CLI context from main module
-class CLIContext:
-    """Global CLI context for sharing state across commands."""
-    
-    def __init__(self):
-        self.config_file: Optional[str] = None
-        self.output_format: str = "table"
-        self.verbose: int = 0
-        self.config: Dict[str, Any] = {}
-        self.logger: Optional[logging.Logger] = self._setup_logger()
-    
-    def _setup_logger(self):
-        """Setup basic logger."""
-        logger = logging.getLogger('bnap-cli')
-        if not logger.handlers:
-            handler = logging.StreamHandler(sys.stderr)
-            formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-        return logger
-    
-    def output(self, data: Any, format_override: Optional[str] = None):
-        """Output data in specified format."""
-        format_type = format_override or self.output_format
-        
-        try:
-            if format_type == "json":
-                print(json.dumps(data, indent=2, default=str))
-            elif format_type == "table":
-                self._output_table(data)
-            elif format_type == "yaml":
-                try:
-                    import yaml
-                    print(yaml.dump(data, default_flow_style=False))
-                except ImportError:
-                    self.logger.warning("PyYAML not installed, falling back to JSON")
-                    print(json.dumps(data, indent=2, default=str))
-            else:
-                print(str(data))
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Output formatting error: {e}")
-            print(str(data))
-    
-    def _output_table(self, data: Any):
-        """Output data in table format."""
-        if isinstance(data, dict):
-            # Simple key-value table
-            for key, value in data.items():
-                print(f"{key:20} {value}")
-        elif isinstance(data, list) and data:
-            # Table with headers
-            if isinstance(data[0], dict):
-                headers = list(data[0].keys())
-                print(" | ".join(f"{h:15}" for h in headers))
-                print("-" * (len(headers) * 17))
-                for item in data:
-                    values = [str(item.get(h, ""))[:15] for h in headers]
-                    print(" | ".join(f"{v:15}" for v in values))
-            else:
-                # Simple list
-                for item in data:
-                    print(item)
-        else:
-            print(str(data))
-
-
-# Global context instance
-pass_context = click.make_pass_decorator(CLIContext, ensure=True)
-
-
-# Error handling wrapper
-def handle_cli_error(func):
-    """Decorator to handle CLI errors gracefully."""
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except KeyboardInterrupt:
-            click.echo("\\nOperation cancelled by user.", err=True)
-            sys.exit(130)
-        except Exception as e:
-            # Get context if available
-            ctx = None
-            try:
-                ctx = click.get_current_context().find_object(CLIContext)
-            except:
-                pass
-            
-            if ctx and ctx.verbose >= 2:
-                # Show full traceback in debug mode
-                import traceback
-                click.echo(f"Error: {e}", err=True)
-                click.echo(traceback.format_exc(), err=True)
-            else:
-                click.echo(f"Error: {e}", err=True)
-                click.echo("Use -vv for detailed error information.", err=True)
-            
-            sys.exit(1)
-    
-    return wrapper
-
-
-def load_json_file(file_path: str) -> Dict[str, Any]:
-    """Load and validate JSON file."""
-    path = Path(file_path)
-    if not path.exists():
-        raise click.FileError(f"File not found: {file_path}")
-    
-    try:
-        with open(path, 'r') as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
-        raise click.FileError(f"Invalid JSON in {file_path}: {e}")
-
-
-def save_json_file(data: Dict[str, Any], file_path: str, indent: int = 2):
-    """Save data to JSON file."""
-    path = Path(file_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(path, 'w') as f:
-        json.dump(data, f, indent=indent, default=str)
+# Import main CLI context and help system
+from cli.main import pass_context, CLIContext, load_json_file, save_json_file
+from cli.help import get_command_examples, format_examples_help
 
 
 @click.group()
@@ -170,12 +49,13 @@ def asset(ctx: CLIContext):
 @click.option('--from-file', type=click.Path(exists=True), help='Load token definition from JSON file')
 @click.option('--output-file', type=click.Path(), help='Save asset configuration to file')
 @click.option('--dry-run', is_flag=True, help='Validate inputs without creating asset')
+@click.option('--show-examples', is_flag=True, help='Show usage examples and exit')
 @pass_context
-@handle_cli_error
 def create_fungible(ctx: CLIContext, name: str, symbol: str, max_supply: Optional[int],
                    per_mint_limit: Optional[int], description: Optional[str], 
                    icon_uri: Optional[str], website: Optional[str],
-                   from_file: Optional[str], output_file: Optional[str], dry_run: bool):
+                   from_file: Optional[str], output_file: Optional[str], dry_run: bool, 
+                   show_examples: bool):
     """
     Create a new fungible token asset.
     
@@ -186,6 +66,16 @@ def create_fungible(ctx: CLIContext, name: str, symbol: str, max_supply: Optiona
         bnap asset create-fungible --name "MyToken" --symbol "MTK" --max-supply 1000000
         bnap asset create-fungible --from-file token.json --output-file config.json
     """
+    
+    # Show examples if requested
+    if show_examples:
+        examples = get_command_examples('asset', 'create-fungible')
+        if examples:
+            ctx.info("Examples for asset create-fungible:")
+            print(format_examples_help(examples))
+        else:
+            ctx.info("No examples available for this command")
+        return
     
     if from_file:
         ctx.logger.info(f"Loading token definition from {from_file}")
@@ -301,7 +191,6 @@ def create_fungible(ctx: CLIContext, name: str, symbol: str, max_supply: Optiona
 @click.option('--output-file', type=click.Path(), help='Save collection configuration to file')
 @click.option('--dry-run', is_flag=True, help='Validate inputs without creating collection')
 @pass_context
-@handle_cli_error
 def create_nft(ctx: CLIContext, collection_name: str, symbol: Optional[str],
                max_supply: Optional[int], description: Optional[str],
                base_uri: Optional[str], image_uri: Optional[str], website: Optional[str],
@@ -436,7 +325,6 @@ def create_nft(ctx: CLIContext, collection_name: str, symbol: Optional[str],
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json', 'csv']), 
               help='Override output format')
 @pass_context
-@handle_cli_error
 def list_assets(ctx: CLIContext, asset_type: Optional[str], status: Optional[str], 
                 limit: int, output_format: Optional[str]):
     """
@@ -516,7 +404,6 @@ def list_assets(ctx: CLIContext, asset_type: Optional[str], status: Optional[str
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json', 'yaml']), 
               help='Override output format')
 @pass_context
-@handle_cli_error
 def asset_info(ctx: CLIContext, asset_id: str, output_format: Optional[str]):
     """
     Display detailed information about a specific asset.
@@ -592,7 +479,6 @@ def asset_info(ctx: CLIContext, asset_id: str, output_format: Optional[str]):
 @click.option('--from-file', type=click.Path(exists=True), help='Load rules from JSON file')
 @click.option('--dry-run', is_flag=True, help='Preview changes without applying')
 @pass_context
-@handle_cli_error
 def update_rules(ctx: CLIContext, asset_id: str, enable_minting: Optional[bool],
                 public_minting: Optional[bool], per_mint_limit: Optional[int],
                 whitelist_required: Optional[bool], from_file: Optional[str], dry_run: bool):

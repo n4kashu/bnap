@@ -18,6 +18,17 @@ from datetime import datetime
 # Add the project root to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import configuration management
+from cli.config import get_config_manager, load_config
+
+# Import help and output modules
+from cli.help import (
+    get_command_examples, get_troubleshooting_guide, get_context_help,
+    format_examples_help, generate_man_page, generate_completion_script,
+    QUICK_START_GUIDE, CHEAT_SHEET
+)
+from cli.output import OutputFormatter, ProgressBar, StatusIndicator
+
 # Global CLI context
 class CLIContext:
     """Global CLI context for sharing state across commands."""
@@ -28,6 +39,8 @@ class CLIContext:
         self.verbose: int = 0
         self.config: Dict[str, Any] = {}
         self.logger: Optional[logging.Logger] = None
+        self.config_manager = None
+        self.output_formatter: Optional[OutputFormatter] = None
     
     def setup_logging(self):
         """Configure logging based on verbosity level."""
@@ -59,70 +72,76 @@ class CLIContext:
             logging.getLogger('urllib3').setLevel(logging.WARNING)
     
     def load_config(self):
-        """Load configuration from file if specified."""
-        if not self.config_file:
-            return
+        """Load configuration from file and environment."""
+        # Use configuration manager for hierarchical config loading
+        self.config_manager = get_config_manager(self.config_file)
+        self.config = self.config_manager.load()
         
-        config_path = Path(self.config_file)
-        if not config_path.exists():
-            self.logger.warning(f"Config file not found: {config_path}")
-            return
+        # Apply CLI-specific settings from config
+        if 'cli' in self.config:
+            cli_config = self.config['cli']
+            # Only override if not set via command line
+            if self.output_format == "table" and 'output_format' in cli_config:
+                self.output_format = cli_config['output_format']
+            if self.verbose == 0 and 'verbose' in cli_config:
+                self.verbose = cli_config['verbose']
         
-        try:
-            with open(config_path, 'r') as f:
-                self.config = json.load(f)
-            self.logger.info(f"Loaded configuration from {config_path}")
-        except Exception as e:
-            self.logger.error(f"Failed to load config: {e}")
-            sys.exit(1)
+        self.logger.debug(f"Loaded configuration from {len(self.config_manager.get_sources())} sources")
+        
+        # Initialize output formatter
+        self.output_formatter = OutputFormatter(
+            format_type=self.output_format,
+            color_output=self.config.get('cli', {}).get('color_output', True)
+        )
     
     def get_config(self, key: str, default: Any = None) -> Any:
         """Get configuration value with fallback to default."""
         return self.config.get(key, default)
     
-    def output(self, data: Any, format_override: Optional[str] = None):
-        """Output data in specified format."""
-        format_type = format_override or self.output_format
-        
+    def output(self, data: Any, format_override: Optional[str] = None, 
+               template: Optional[str] = None, headers: Optional[List[str]] = None):
+        """Output data in specified format using the OutputFormatter."""
         try:
-            if format_type == "json":
-                print(json.dumps(data, indent=2, default=str))
-            elif format_type == "table":
-                self._output_table(data)
-            elif format_type == "yaml":
-                try:
-                    import yaml
-                    print(yaml.dump(data, default_flow_style=False))
-                except ImportError:
-                    self.logger.warning("PyYAML not installed, falling back to JSON")
-                    print(json.dumps(data, indent=2, default=str))
+            # Update formatter if format override is provided
+            if format_override and format_override != self.output_format:
+                formatter = OutputFormatter(
+                    format_type=format_override,
+                    color_output=self.config.get('cli', {}).get('color_output', True)
+                )
             else:
-                print(str(data))
+                formatter = self.output_formatter
+            
+            # Format and print the data
+            formatted_output = formatter.format(data, template=template, headers=headers)
+            print(formatted_output)
+            
         except Exception as e:
             self.logger.error(f"Output formatting error: {e}")
-            print(str(data))
-    
-    def _output_table(self, data: Any):
-        """Output data in table format."""
-        if isinstance(data, dict):
-            # Simple key-value table
-            for key, value in data.items():
-                print(f"{key:20} {value}")
-        elif isinstance(data, list) and data:
-            # Table with headers
-            if isinstance(data[0], dict):
-                headers = list(data[0].keys())
-                print(" | ".join(f"{h:15}" for h in headers))
-                print("-" * (len(headers) * 17))
-                for item in data:
-                    values = [str(item.get(h, ""))[:15] for h in headers]
-                    print(" | ".join(f"{v:15}" for v in values))
+            # Fallback to simple string output
+            if isinstance(data, (dict, list)):
+                print(json.dumps(data, indent=2, default=str))
             else:
-                # Simple list
-                for item in data:
-                    print(item)
-        else:
-            print(str(data))
+                print(str(data))
+    
+    def success(self, message: str):
+        """Display success message with formatting."""
+        formatted_msg = StatusIndicator.format_status('success', message, color=True)
+        click.echo(formatted_msg)
+    
+    def error(self, message: str):
+        """Display error message with formatting."""
+        formatted_msg = StatusIndicator.format_status('error', message, color=True)
+        click.echo(formatted_msg, err=True)
+    
+    def warning(self, message: str):
+        """Display warning message with formatting."""
+        formatted_msg = StatusIndicator.format_status('warning', message, color=True)
+        click.echo(formatted_msg, err=True)
+    
+    def info(self, message: str):
+        """Display info message with formatting."""
+        formatted_msg = StatusIndicator.format_status('info', message, color=True)
+        click.echo(formatted_msg)
 
 
 # Global context instance
@@ -133,7 +152,7 @@ pass_context = click.make_pass_decorator(CLIContext, ensure=True)
 @click.option('--config-file', '-c', 
               help='Path to configuration file')
 @click.option('--output-format', '-o', 
-              type=click.Choice(['table', 'json', 'yaml']), 
+              type=click.Choice(['table', 'json', 'yaml', 'csv', 'template']), 
               default='table',
               help='Output format')
 @click.option('--verbose', '-v', 
@@ -142,9 +161,12 @@ pass_context = click.make_pass_decorator(CLIContext, ensure=True)
 @click.option('--version', 
               is_flag=True, 
               help='Show version information')
+@click.option('--show-examples', 
+              is_flag=True, 
+              help='Show usage examples')
 @pass_context
 def cli(ctx: CLIContext, config_file: Optional[str], output_format: str, 
-        verbose: int, version: bool):
+        verbose: int, version: bool, show_examples: bool):
     """
     Bitcoin Native Asset Protocol (BNAP) Command Line Interface
     
@@ -159,8 +181,15 @@ def cli(ctx: CLIContext, config_file: Optional[str], output_format: str,
     """
     
     if version:
-        from cli import __version__
-        click.echo(f"BNAP CLI v{__version__}")
+        try:
+            from cli import __version__
+            click.echo(f"BNAP CLI v{__version__}")
+        except ImportError:
+            click.echo("BNAP CLI v1.0.0")
+        sys.exit(0)
+    
+    if show_examples:
+        click.echo(QUICK_START_GUIDE)
         sys.exit(0)
     
     # Setup context
@@ -185,15 +214,6 @@ def cli(ctx: CLIContext, config_file: Optional[str], output_format: str,
 
 
 
-@cli.group()
-@pass_context
-def config(ctx: CLIContext):
-    """
-    Configuration management commands.
-    
-    Manage CLI configuration, environment settings, and system parameters.
-    """
-    ctx.logger.debug("Config command group invoked")
 
 
 # Error handling wrapper
@@ -366,6 +386,18 @@ def register_commands():
         cli.add_command(validator)
     except ImportError as e:
         logging.getLogger('bnap-cli').warning(f"Failed to load validator commands: {e}")
+    
+    try:
+        from cli.commands.config import config
+        cli.add_command(config)
+    except ImportError as e:
+        logging.getLogger('bnap-cli').warning(f"Failed to load config commands: {e}")
+    
+    try:
+        from cli.commands.help import help
+        cli.add_command(help)
+    except ImportError as e:
+        logging.getLogger('bnap-cli').warning(f"Failed to load help commands: {e}")
 
 
 # Main entry point

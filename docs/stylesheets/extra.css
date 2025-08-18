@@ -1,0 +1,211 @@
+/* BNAP Custom Styles */
+
+:root {
+  --md-primary-fg-color: #f57c00;
+  --md-primary-fg-color--light: #ffb74d;
+  --md-primary-fg-color--dark: #e65100;
+  --md-accent-fg-color: #ff6f00;
+  --bnap-bitcoin-color: #f7931a;
+  --bnap-success-color: #4caf50;
+  --bnap-warning-color: #ff9800;
+  --bnap-error-color: #f44336;
+}
+
+/* Bitcoin Orange Theme */
+.md-header {
+  background: linear-gradient(135deg, var(--md-primary-fg-color), var(--bnap-bitcoin-color));
+}
+
+/* Custom admonitions for BNAP */
+.md-typeset .admonition.bitcoin,
+.md-typeset details.bitcoin {
+  border-color: var(--bnap-bitcoin-color);
+}
+
+.md-typeset .admonition.bitcoin > .admonition-title,
+.md-typeset details.bitcoin > .admonition-title {
+  background-color: rgba(247, 147, 26, 0.1);
+  border-color: var(--bnap-bitcoin-color);
+}
+
+.md-typeset .admonition.bitcoin > .admonition-title::before,
+.md-typeset details.bitcoin > .admonition-title::before {
+  background-color: var(--bnap-bitcoin-color);
+  -webkit-mask-image: var(--md-admonition-icon--bitcoin);
+  mask-image: var(--md-admonition-icon--bitcoin);
+}
+
+/* Code block enhancements */
+.md-typeset .highlight .gp {
+  color: var(--bnap-bitcoin-color);
+  font-weight: bold;
+}
+
+.md-typeset .highlight .nb {
+  color: var(--md-accent-fg-color);
+}
+
+/* Navigation enhancements */
+.md-nav__title[for="__drawer"] {
+  background: linear-gradient(135deg, var(--md-primary-fg-color), var(--bnap-bitcoin-color));
+  color: white;
+}
+
+/* Feature grid styling */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.feature-card {
+  padding: 1.5rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  background: var(--md-default-bg-color);
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--md-primary-fg-color);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.feature-card h3 {
+  color: var(--md-primary-fg-color);
+  margin-top: 0;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.status-badge.complete {
+  background-color: var(--bnap-success-color);
+  color: white;
+}
+
+.status-badge.in-progress {
+  background-color: var(--bnap-warning-color);
+  color: white;
+}
+
+.status-badge.planned {
+  background-color: var(--md-default-fg-color--light);
+  color: var(--md-default-fg-color);
+}
+
+/* API method styling */
+.api-method {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.2rem;
+  font-family: var(--md-code-font);
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.api-method.get {
+  background-color: #61affe;
+  color: white;
+}
+
+.api-method.post {
+  background-color: #49cc90;
+  color: white;
+}
+
+.api-method.put {
+  background-color: #fca130;
+  color: white;
+}
+
+.api-method.delete {
+  background-color: #f93e3e;
+  color: white;
+}
+
+/* Command line styling */
+.cli-command {
+  background: var(--md-code-bg-color);
+  border-left: 4px solid var(--bnap-bitcoin-color);
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.cli-command code {
+  background: transparent;
+}
+
+.cli-command::before {
+  content: "$";
+  color: var(--bnap-bitcoin-color);
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+/* Transaction examples */
+.tx-example {
+  background: var(--md-code-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.tx-example .tx-header {
+  color: var(--md-primary-fg-color);
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.tx-example code {
+  background: transparent;
+  font-size: 0.9rem;
+}
+
+/* Responsive design improvements */
+@media screen and (max-width: 76.1875em) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dark mode adjustments */
+[data-md-color-scheme="slate"] {
+  --bnap-bitcoin-color: #ffb74d;
+}
+
+[data-md-color-scheme="slate"] .feature-card {
+  background: var(--md-default-bg-color);
+  border-color: var(--md-default-fg-color--lightest);
+}
+
+[data-md-color-scheme="slate"] .tx-example {
+  background: var(--md-code-bg-color);
+  border-color: var(--md-default-fg-color--lightest);
+}
+
+/* Print styles */
+@media print {
+  .md-header,
+  .md-tabs,
+  .md-footer {
+    display: none;
+  }
+  
+  .md-content {
+    margin: 0;
+  }
+}
