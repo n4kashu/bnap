@@ -12,7 +12,7 @@ nav:
   - Getting Started:
     - Quick Start: guides/getting-started.md
     - Installation: deployment/installation.md
-    - First Steps: guides/first-steps.md
+    - System Requirements: deployment/requirements.md
   - Technical Documentation:
     - Architecture Overview: technical/architecture.md
     - Protocol Specification: technical/protocol.md
@@ -28,11 +28,9 @@ nav:
     - Error Codes: api/errors.md
     - Examples: api/examples.md
   - User Guides:
-    - Fungible Tokens: guides/fungible-tokens.md
+    - Getting Started: guides/getting-started.md
     - NFT Collections: guides/nft-collections.md
     - Allowlists & Merkle Proofs: guides/allowlists.md
-    - CLI Commands: guides/cli-reference.md
-    - Integration Guide: guides/integration.md
   - Deployment:
     - System Requirements: deployment/requirements.md
     - Installation Guide: deployment/installation.md
@@ -48,11 +46,13 @@ nav:
     - Security Hardening: operations/security.md
     - Upgrades: operations/upgrades.md
   - Reference:
+    - CLI Reference: reference/cli-complete.md
     - Glossary: reference/glossary.md
+    - FAQ: reference/faq.md
+    - CLI Commands: api/cli-reference.md
     - Data Structures: reference/data-structures.md
     - Transaction Examples: reference/transactions.md
     - Test Vectors: reference/test-vectors.md
-    - FAQ: reference/faq.md
     - External Resources: reference/external.md
 
 theme:
